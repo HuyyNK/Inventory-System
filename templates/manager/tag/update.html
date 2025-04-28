@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sửa thẻ Tag</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="tagupdate">
+        <div class="tagupdate-heading">
+            {% include 'components/heading.html' %}
+        </div>
+        <div class="body">
+            <div class="body-left">
+                {% include 'components/sidebar_manager.html' %}
+            </div>
+            <div class="body-right">
+                Quản lý / Sửa thẻ Tag
+                <h1>Cập nhật thẻ Tag:</h1>
+                <div id="message" style="display: none;"></div>
+                <form id="update-tag-form">
+                    <h2>Thông tin thẻ Tag:</h2>
+                    <div class="tagupdate-fields">
+                        <div class="tagupdate-field">
+                            Tên thẻ Tag
+                            {% set type = 'text' %}
+                            {% set name = 'name' %}
+                            {% set required = True %}
+                            {% set placeholder = 'Tên thẻ Tag' %}
+                            {% set value = tag.name if tag.name else '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="tagupdate-field">
+                            Vị trí lưu trữ
+                            {% set options = ['Kho A', 'Kho B', 'Kho C', 'Kho D'] %}
+                            {% set dropdown_id = 'storage-location-dropdown' %}
+                            {% set name = 'storage_location' %}
+                            {% set selected_text = 'Chọn vị trí lưu trữ' %}
+                            {% set value = tag.storage_location if tag.storage_location else '' %}
+                            {% include 'components/dropdown.html' %}
+                        </div>
+                    </div>
+                    <div class="tagupdate-fields">
+                        <div class="tagupdate-field">
+                            Mô tả
+                            {% set type = 'text' %}
+                            {% set name = 'description' %}
+                            {% set placeholder = 'Mô tả' %}
+                            {% set value = tag.description if tag.description else '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+
+                    <div class="tagupdate-btns">
+                        <a style="text-decoration: none" href="/manager/tag/list">
+                            {% include 'components/exit_button.html' %}
+                        </a>
+                        {% include 'components/save_button.html' %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .body {
+            display: flex;
+            flex: 1 0 0;
+            overflow: hidden;
+        }
+
+        .body-left {
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .body-right {
+            display: flex;
+            padding: 20px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            flex: 1 0 0;
+            align-self: stretch;
+            overflow-y: auto;
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+        }
+
+        .body-right h1 {
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: normal;
+        }
+
+        .body-right h2 {
+            color: var(--Cerulean, #01B3EF);
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: normal;
+        }
+
+        .tagupdate-fields {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tagupdate-field {
+            display: flex;
+            width: 45%;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            flex-shrink: 0;
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+        }
+
+        .tagupdate-btns {
+            display: flex;
+            width: 100%;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #message {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        #message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        #message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('update-tag-form');
+            const messageDiv = document.getElementById('message');
+
+            // Lấy tag_id từ URL
+            const tagId = window.location.pathname.split('/').pop();
+
+            // Xử lý submit form
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const tagData = {
+                    name: formData.get('name'),
+                    description: formData.get('description') || null,
+                    storage_location: formData.get('storage_location') || null
+                };
+
+                try {
+                    const response = await fetch(`/manager/tag/${tagId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(tagData)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                        }
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Failed to update tag');
+                    }
+
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'success';
+                    messageDiv.textContent = 'Cập nhật thẻ Tag thành công';
+                    setTimeout(() => {
+                        window.location.href = '/manager/tag/list';
+                    }, 1000);
+                } catch (error) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: ' + error.message;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

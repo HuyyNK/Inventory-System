@@ -1,0 +1,121 @@
+/* Định nghĩa color palette */
+:root {
+    --primary-color: #01b3ef; /* Màu chính */
+    --secondary-color: #01427a; /* Màu phụ */
+    --tertiary-color: #e14177; /* Màu thứ ba */
+    --success-color: #28a745; /* Màu thành công */
+    --error-color: #e14177; /* Màu lỗi */
+    --warning-color: #ffc107; /* Màu cảnh báo */
+    --info-color: #6dcffb; /* Màu thông tin */
+    --light-color: #fff; /* Màu sáng */
+    --dark-color: #6c6c6c; /* Màu tối */
+  }
+  
+  /* Các biến font */
+  :root {
+    --font-size-base: 16px;
+    --font-size-lg: 18px;
+    --font-size-sm: 14px;
+    --font-family: "Inter";
+  }
+  
+  /* Định dạng button */
+  button {
+    padding: 10px;
+    border-radius: 10px;
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  
+  /* Các variant cho button */
+  button.primary {
+    background-color: var(--primary-color);
+    color: #fff;
+  }
+  
+  button.secondary {
+    background-color: var(--secondary-color);
+    color: #fff;
+  }
+  
+  button.success {
+    background-color: var(--success-color);
+    color: #fff;
+  }
+  
+  button.danger {
+    background-color: var(--error-color);
+    color: #fff;
+  }
+  
+  button.warning {
+    background-color: var(--warning-color);
+    color: #fff;
+  }
+  
+  /* Định dạng cho input */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea {
+    padding: 0px;
+    border-radius: 5px;
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    color: #000;
+    border: none;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  
+  /* Định dạng cho input khi focus */
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus,
+  textarea:focus {
+    border-color: var(--primary-color);
+    outline: none;
+  }
+  
+  /* Các variant cho input */
+  input[type="text"].error,
+  input[type="email"].error,
+  input[type="password"].error {
+    border-color: var(--error-color);
+  }
+  
+  input[type="text"].success,
+  input[type="email"].success,
+  input[type="password"].success {
+    border-color: var(--success-color);
+  }
+  
+  form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    flex: 1 0 0;
+    align-self: stretch;
+    width: 100%;
+  }
+  
+  form input[type="text"],
+  form input[type="email"],
+  form input[type="password"] {
+    display: flex;
+    height: 40px;
+    padding: 5px;
+    align-items: center;
+    align-self: stretch;
+    width: 100%;
+    color: #000;
+  }
+  
+  
+  

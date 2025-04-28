@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cập nhật nhà cung cấp</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="supplieradd">
+        <div class="supplieradd-heading">
+            {% include 'components/heading.html' %}
+        </div>
+        <div class="body">
+            <div class="body-left">
+                {% include 'components/sidebar_manager.html' %}
+            </div>
+            <div class="body-right">
+                Quản lý / Cập nhật nhà cung cấp
+                <h1>Cập nhật nhà cung cấp:</h1>
+                <div id="message" style="display: none;"></div>
+                <form id="update-supplier-form">
+                    <h2>Thông tin nhà cung cấp:</h2>
+                    <div class="supplieradd-fields">
+                        <div class="supplieradd-field">
+                            Tên nhà cung cấp
+                            {% set type = 'text' %}
+                            {% set name = 'name' %}
+                            {% set required = True %}
+                            {% set placeholder = 'Tên nhà cung cấp' %}
+                            {% set value = '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="supplieradd-field">
+                            Email
+                            {% set type = 'email' %}
+                            {% set name = 'email' %}
+                            {% set placeholder = 'Email' %}
+                            {% set value = '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+                    <div class="supplieradd-fields">
+                        <div class="supplieradd-field">
+                            Số điện thoại
+                            {% set type = 'text' %}
+                            {% set name = 'phone' %}
+                            {% set placeholder = 'Số điện thoại' %}
+                            {% set value = '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="supplieradd-field">
+                            Địa chỉ
+                            {% set type = 'text' %}
+                            {% set name = 'address' %}
+                            {% set placeholder = 'Địa chỉ' %}
+                            {% set value = '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+
+                    <div class="supplieradd-btns">
+                        <a style="text-decoration: none" href="/manager/supplier/list">
+                            {% include 'components/exit_button.html' %}
+                        </a>
+                        {% include 'components/save_button.html' %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .body {
+            display: flex;
+            flex: 1 0 0;
+            overflow: hidden;
+        }
+
+        .body-left {
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .body-right {
+            display: flex;
+            padding: 20px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            flex: 1 0 0;
+            align-self: stretch;
+            overflow-y: auto;
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+        }
+
+        .body-right h1 {
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: normal;
+        }
+
+        .body-right h2 {
+            color: var(--Cerulean, #01B3EF);
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: normal;
+        }
+
+        .supplieradd-fields {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .supplieradd-field {
+            display: flex;
+            width: 45%;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            flex-shrink: 0;
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+        }
+
+        .supplieradd-btns {
+            display: flex;
+            width: 100%;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #message {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        #message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        #message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const form = document.getElementById('update-supplier-form');
+            const messageDiv = document.getElementById('message');
+
+            // Lấy supplier_id từ URL
+            const supplierId = window.location.pathname.split('/').pop();
+
+            // Hàm lấy thông tin nhà cung cấp từ API
+            async function fetchSupplier() {
+                try {
+                    const response = await fetch(`/manager/supplier/${supplierId}`, {
+                        credentials: 'include',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return null;
+                        }
+                        throw new Error('Failed to fetch supplier');
+                    }
+                    return await response.json();
+                } catch (error) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: ' + error.message;
+                    return null;
+                }
+            }
+
+            // Hàm điền dữ liệu vào form
+            function populateForm(supplier) {
+                if (!supplier) return;
+                form.querySelector('input[name="name"]').value = supplier.name || '';
+                form.querySelector('input[name="email"]').value = supplier.email || '';
+                form.querySelector('input[name="phone"]').value = supplier.phone || '';
+                form.querySelector('input[name="address"]').value = supplier.address || '';
+            }
+
+            // Tải dữ liệu nhà cung cấp khi trang được tải
+            const supplier = await fetchSupplier();
+            populateForm(supplier);
+
+            // Xử lý sự kiện submit form
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const supplierData = {
+                    name: formData.get('name'),
+                    phone: formData.get('phone') || null,
+                    email: formData.get('email') || null,
+                    address: formData.get('address') || null
+                };
+
+                try {
+                    const response = await fetch(`/manager/supplier/${supplierId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(supplierData)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                        }
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Failed to update supplier');
+                    }
+
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'success';
+                    messageDiv.textContent = 'Cập nhật nhà cung cấp thành công';
+                    setTimeout(() => {
+                        window.location.href = '/manager/supplier/list';
+                    }, 1000);
+                } catch (error) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: ' + error.message;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

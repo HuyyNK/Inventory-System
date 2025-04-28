@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông tin cá nhân</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="user-profile">
+        <div class="user-profile-heading">
+            {% include 'components/heading.html' %}
+        </div>
+        <div class="body">
+            <div class="body-left">
+                {% include 'components/sidebar_manager.html' %}
+            </div>
+            <div class="body-right">
+                <h2>Thông tin cá nhân:</h2>
+                <div id="message" style="display: none;"></div>
+                <form id="update-profile-form">
+                    <div class="user-profile-fields">
+                        <div class="user-profile-field">
+                            Tên đăng nhập
+                            {% set type = 'text' %}
+                            {% set name = 'username' %}
+                            {% set readonly = True %}
+                            {% set value = user.username %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="user-profile-field">
+                            Vai trò
+                            {% set type = 'text' %}
+                            {% set name = 'role_name' %}
+                            {% set readonly = True %}
+                            {% set value = user.role_name %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+                    <div class="user-profile-fields">
+                        <div class="user-profile-field">
+                            Họ tên
+                            {% set type = 'text' %}
+                            {% set name = 'full_name' %}
+                            {% set required = True %}
+                            {% set readonly = False %}
+                            {% set value = user.full_name if user.full_name else '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="user-profile-field">
+                            Giới tính
+                            {% set type = 'text' %}
+                            {% set name = 'gender' %}
+                            {% set readonly = False %}
+                            {% set value = user.gender if user.gender else '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+                    <div class="user-profile-fields">
+                        <div class="user-profile-field">
+                            Ngày sinh
+                            {% set type = 'date' %}
+                            {% set name = 'birthday' %}
+                            {% set readonly = False %}
+                            {% set value = user.birthday if user.birthday else '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="user-profile-field">
+                            Số điện thoại
+                            {% set type = 'text' %}
+                            {% set name = 'phone' %}
+                            {% set readonly = False %}
+                            {% set value = user.phone if user.phone else '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+                    <div class="user-profile-fields">
+                        <div class="user-profile-field">
+                            Email
+                            {% set type = 'email' %}
+                            {% set name = 'email' %}
+                            {% set readonly = False %}
+                            {% set value = user.email if user.email else '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="user-profile-field">
+                            Địa chỉ
+                            {% set type = 'text' %}
+                            {% set name = 'address' %}
+                            {% set readonly = False %}
+                            {% set value = user.address if user.address else '' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+
+                    <div class="user-profile-btns">
+                        <a style="text-decoration: none" href="/dashboard">
+                            {% include 'components/exit_button.html' %}
+                        </a>
+                        {% include 'components/save_button.html' %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .user-profile {
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: flex-start;
+            background: #FFF;
+        }
+
+        .user-profile-heading {
+            width: 100%;
+            height: 60px;
+        }
+
+        .body {
+            display: flex;
+            align-items: flex-start;
+            flex: 1 0 0;
+            align-self: stretch;
+            overflow: hidden;
+        }
+
+        .body-left {
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .body-right {
+            display: flex;
+            padding: 20px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            flex: 1 0 0;
+            align-self: stretch;
+            overflow-y: auto;
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+        }
+
+        .body-right h2 {
+            color: var(--Cerulean, #01B3EF);
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: normal;
+        }
+
+        .user-profile-fields {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-profile-field {
+            display: flex;
+            width: 45%;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            flex-shrink: 0;
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+        }
+
+        .user-profile-btns {
+            display: flex;
+            width: 100%;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #message {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        #message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        #message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('update-profile-form');
+            const messageDiv = document.getElementById('message');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const userData = {
+                    full_name: formData.get('full_name'),
+                    phone: formData.get('phone') || null,
+                    email: formData.get('email') || null,
+                    address: formData.get('address') || null,
+                    birthday: formData.get('birthday') || null,
+                    gender: formData.get('gender') || null
+                };
+
+                try {
+                    const response = await fetch('/manager/me', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(userData)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                        }
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Failed to update profile');
+                    }
+
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'success';
+                    messageDiv.textContent = 'Cập nhật thông tin cá nhân thành công';
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } catch (error) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: ' + error.message;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
