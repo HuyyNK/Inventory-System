@@ -53,3 +53,43 @@ def update_user_sql(user_id: int, full_name: str, phone: str, email: str, addres
     conn.commit()
     cursor.close()
     conn.close()
+    
+# Hàm lấy thông tin người dùng theo ID
+def get_user_by_id_sql(user_id: int) -> dict:
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """
+        SELECT u.id, u.username, u.password, u.full_name, u.phone, u.email, u.address, u.birthday, 
+            u.gender, u.is_active, u.role_id, r.name as role_name
+        FROM user u
+        LEFT JOIN role r ON u.role_id = r.id
+        WHERE u.id = %s
+        """,
+        (user_id,)
+    )
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if user:
+        if user["birthday"]:
+            user["birthday"] = user["birthday"].strftime("%Y-%m-%d")
+        if not user["role_name"]:
+            user["role_name"] = "Unknown"
+    return user
+
+# Hàm cập nhật mật khẩu người dùng
+def update_user_password_sql(user_id: int, new_password: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE user
+        SET password = %s
+        WHERE id = %s
+        """,
+        (new_password, user_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()

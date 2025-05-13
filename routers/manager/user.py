@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from procedures.auth import get_current_user
 from models.user_sql import get_role_name
-from procedures.manager.user import get_user_details, update_user
+from procedures.manager.user import change_password, get_user_details, update_user
 
 router = APIRouter(prefix="/manager", tags=["manager_profile"])
 templates = Jinja2Templates(directory="templates")
@@ -16,7 +16,16 @@ async def user_profile_page(request: Request, user: dict = Depends(get_current_u
         "/manager/profile.html",
         {"request": request, "user": user_data}
     )
-
+@router.get("/change-password", response_class=HTMLResponse)
+async def change_password_page(request: Request, user: dict = Depends(get_current_user)):
+    user_data = request.session.get("user", {})
+    if not user_data:
+        return RedirectResponse(url="/login", status_code=303)
+    return templates.TemplateResponse(
+        "manager/change_password.html",
+        {"request": request, "user": user_data}
+    )
+    
 @router.get("/me", response_model=dict)
 async def get_current_user_details(user: dict = Depends(get_current_user)):
     return get_user_details(user)
@@ -68,3 +77,30 @@ async def update_current_user(request: Request, user: dict = Depends(get_current
 
     return {"message": "User updated successfully"}
 
+@router.put("/change-password")
+async def change_user_password(request: Request, user: dict = Depends(get_current_user)):
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON data")
+
+    old_password = data.get("old_password")
+    new_password = data.get("new_password")
+    confirm_password = data.get("confirm_password")
+
+    if not old_password or not isinstance(old_password, str):
+        raise HTTPException(status_code=400, detail="Old password is required and must be a string")
+    if not new_password or not isinstance(new_password, str):
+        raise HTTPException(status_code=400, detail="New password is required and must be a string")
+    if not confirm_password or not isinstance(confirm_password, str):
+        raise HTTPException(status_code=400, detail="Confirm password is required and must be a string")
+    if new_password != confirm_password:
+        raise HTTPException(status_code=400, detail="New password and confirm password do not match")
+
+    change_password(
+        user_id=user["id"],
+        old_password=old_password,
+        new_password=new_password
+    )
+
+    return {"message": "Password changed successfully"}

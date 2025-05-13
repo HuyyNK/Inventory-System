@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thêm thẻ Tag</title>
+    <title>Cập nhật danh mục</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="tagadd">
-        <div class="tagadd-heading">
+    <div class="categoryadd">
+        <div class="categoryadd-heading">
             {% include 'components/heading.html' %}
         </div>
         <div class="body">
@@ -16,42 +16,32 @@
                 {% include 'components/sidebar_manager.html' %}
             </div>
             <div class="body-right">
-                Quản lý / Thêm thẻ Tag
-                <h1>Tạo thẻ Tag:</h1>
+                Quản lý / Cập nhật danh mục
+                <h1>Cập nhật danh mục:</h1>
                 <div id="message" style="display: none;"></div>
-                <form id="add-tag-form">
-                    <h2>Thông tin thẻ Tag:</h2>
-                    <div class="tagadd-fields">
-                        <div class="tagadd-field">
-                            Tên thẻ Tag
+                <form id="update-category-form">
+                    <h2>Thông tin danh mục:</h2>
+                    <div class="categoryadd-fields">
+                        <div class="categoryadd-field">
+                            Tên danh mục
                             {% set type = 'text' %}
                             {% set name = 'name' %}
                             {% set required = True %}
-                            {% set placeholder = 'Tên thẻ Tag' %}
+                            {% set placeholder = 'Tên danh mục' %}
+                            {% set value = '' %}
                             {% include 'components/input.html' %}
                         </div>
-                        <div class="tagadd-field">
-                            Vị trí lưu trữ
-                            {% set options = ['Kho A', 'Kho B', 'Kho C', 'Kho D'] %}
-                            {% set dropdown_id = 'storage-location-dropdown' %}
-                            {% set name = 'storage_location' %}
-                            {% set selected_text = 'Chọn vị trí lưu trữ' %}
-                            {% set value = '' %}
-                            {% include 'components/dropdown.html' %}
-                        </div>
-                    </div>
-                    <div class="tagadd-fields">
-                        <div class="tagadd-field">
+                        <div class="categoryadd-field">
                             Mô tả
                             {% set type = 'text' %}
                             {% set name = 'description' %}
                             {% set placeholder = 'Mô tả' %}
+                            {% set value = '' %}
                             {% include 'components/input.html' %}
                         </div>
                     </div>
-
-                    <div class="tagadd-btns">
-                        <a style="text-decoration: none" href="/manager/tag/list">
+                    <div class="categoryadd-btns">
+                        <a style="text-decoration: none" href="/manager/category/list">
                             {% include 'components/exit_button.html' %}
                         </a>
                         {% include 'components/save_button.html' %}
@@ -116,14 +106,14 @@
             line-height: normal;
         }
 
-        .tagadd-fields {
+        .categoryadd-fields {
             display: flex;
             width: 100%;
             justify-content: space-between;
             align-items: center;
         }
 
-        .tagadd-field {
+        .categoryadd-field {
             display: flex;
             width: 45%;
             flex-direction: column;
@@ -138,7 +128,7 @@
             line-height: normal;
         }
 
-        .tagadd-btns {
+        .categoryadd-btns {
             display: flex;
             width: 100%;
             justify-content: flex-end;
@@ -167,29 +157,68 @@
     </style>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('add-tag-form');
+        document.addEventListener('DOMContentLoaded', async () => {
+            const form = document.getElementById('update-category-form');
             const messageDiv = document.getElementById('message');
 
+            // Lấy category_id từ URL
+            const categoryId = window.location.pathname.split('/').pop();
+
+            // Hàm lấy thông tin danh mục từ API
+            async function fetchCategory() {
+                try {
+                    const response = await fetch(`/manager/category/${categoryId}`, {
+                        credentials: 'include',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return null;
+                        }
+                        throw new Error('Failed to fetch category');
+                    }
+                    return await response.json();
+                } catch (error) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: ' + error.message;
+                    return null;
+                }
+            }
+
+            // Hàm điền dữ liệu vào form
+            function populateForm(category) {
+                if (!category) return;
+                form.querySelector('input[name="name"]').value = category.name || '';
+                form.querySelector('input[name="description"]').value = category.description || '';
+            }
+
+            // Tải dữ liệu danh mục khi trang được tải
+            const category = await fetchCategory();
+            populateForm(category);
+
+            // Xử lý sự kiện submit form
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
                 const formData = new FormData(form);
-                const tagData = {
+                const categoryData = {
                     name: formData.get('name'),
-                    description: formData.get('description') || null,
-                    storage_location: formData.get('storage_location') || null
+                    description: formData.get('description') || null
                 };
 
                 try {
-                    const response = await fetch('/manager/tag/', {
-                        method: 'POST',
+                    const response = await fetch(`/manager/category/${categoryId}`, {
+                        method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
                             'Accept': 'application/json'
                         },
                         credentials: 'include',
-                        body: JSON.stringify(tagData)
+                        body: JSON.stringify(categoryData)
                     });
 
                     if (!response.ok) {
@@ -198,14 +227,14 @@
                             return;
                         }
                         const errorData = await response.json();
-                        throw new Error(errorData.detail || 'Failed to add tag');
+                        throw new Error(errorData.detail || 'Failed to update category');
                     }
 
                     messageDiv.style.display = 'block';
                     messageDiv.className = 'success';
-                    messageDiv.textContent = 'Thêm thẻ Tag thành công';
+                    messageDiv.textContent = 'Cập nhật danh mục thành công';
                     setTimeout(() => {
-                        window.location.href = '/manager/tag/list';
+                        window.location.href = '/manager/category/list';
                     }, 1000);
                 } catch (error) {
                     messageDiv.style.display = 'block';

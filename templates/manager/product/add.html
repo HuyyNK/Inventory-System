@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thêm sản phẩm</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .body {
+            display: flex;
+            flex: 1 0 0;
+            overflow: hidden;
+        }
+
+        .body-left {
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .body-right {
+            display: flex;
+            padding: 20px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            flex: 1 0 0;
+            align-self: stretch;
+            overflow-y: auto;
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+        }
+
+        .body-right h1 {
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: normal;
+        }
+
+        .body-right h2 {
+            color: var(--Cerulean, #01B3EF);
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: normal;
+        }
+
+        .productadd-fields {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .productadd-field {
+            display: flex;
+            width: 48%;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            flex-shrink: 0;
+            color: #000;
+            font-family: Inter;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+        }
+
+        .productadd-btns {
+            display: flex;
+            width: 100%;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #message {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        #message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        #message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .image-upload-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 600px;
+            padding: 20px;
+            border: 1px solid #eaeaea;
+            border-radius: 12px;
+            background-color: #fdfdfd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .image-upload-label {
+            display: inline-block;
+            padding: 10px 18px;
+            background-color: #01427a;
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .image-upload-label:hover {
+            background-color: #01427a;
+        }
+
+        .image-upload-preview {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .image-preview {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.25s ease-in-out;
+        }
+
+        .image-preview:hover {
+            transform: scale(1.05);
+        }
+
+        small {
+            color: #999;
+            font-size: 13px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="productadd">
+        <div class="productadd-heading">
+            {% include 'components/heading.html' %}
+        </div>
+        <div class="body">
+            <div class="body-left">
+                {% include 'components/sidebar_manager.html' %}
+            </div>
+            <div class="body-right">
+                Quản lý / Thêm sản phẩm
+                <h1>Tạo sản phẩm:</h1>
+                <div id="message" style="display: none;"></div>
+                <form id="add-product-form" enctype="multipart/form-data">
+                    <h2>Thông tin sản phẩm:</h2>
+                    <div class="productadd-fields">
+                        <div class="productadd-field">
+                            Tên sản phẩm
+                            {% set type = 'text' %}
+                            {% set name = 'name' %}
+                            {% set required = True %}
+                            {% set placeholder = 'Tên sản phẩm' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="productadd-field">
+                            SKU
+                            {% set type = 'text' %}
+                            {% set name = 'sku' %}
+                            {% set readonly = True %}
+                            {% set id = 'sku' %}
+                            {% set required = True %}
+                            {% set placeholder = 'Tự động tạo (SKU000001)' %}
+                            {% include 'components/input.html' %}
+                            
+                        </div>
+                    </div>
+                    <div class="productadd-fields">
+                        <div class="productadd-field">
+                            Danh mục
+                            {% set dropdown_id = 'category-dropdown' %}
+                            {% set name = 'category_id' %}
+                            {% set options = category_options|map(attribute='name')|list %}
+                            {% set selected_text = 'Chọn danh mục' %}
+                            {% include 'components/dropdown.html' %}
+                        </div>
+                        <div class="productadd-field">
+                            Nhà cung cấp
+                            {% set dropdown_id = 'supplier-dropdown' %}
+                            {% set name = 'supplier_id' %}
+                            {% set options = supplier_options|map(attribute='name')|list %}
+                            {% set selected_text = 'Chọn nhà cung cấp' %}
+                            {% include 'components/dropdown.html' %}
+                        </div>
+                    </div>
+                    <div class="productadd-fields">
+                        <div class="productadd-field">
+                            Đơn vị tính
+                            {% set type = 'text' %}
+                            {% set name = 'unit' %}
+                            {% set placeholder = 'Ví dụ: Cái, Hộp, Kg' %}
+                            {% set readonly = False %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="productadd-field">
+                            Mô tả
+                            {% set type = 'text' %}
+                            {% set name = 'description' %}
+                            {% set placeholder = 'Mô tả sản phẩm' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+                    <div class="productadd-fields">
+                        <div class="productadd-field">
+                            Chi phí sản xuất
+                            {% set type = 'number' %}
+                            {% set name = 'cost_price' %}
+                            {% set required = True %}
+                            {% set placeholder = 'Chi phí (VND)' %}
+                            {% set step = '0.01' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="productadd-field">
+                            Giá bán
+                            {% set type = 'number' %}
+                            {% set name = 'market_price' %}
+                            {% set required = True %}
+                            {% set placeholder = 'Giá bán (VND)' %}
+                            {% set step = '0.01' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+                    <div class="productadd-fields">
+                        <div class="productadd-field">
+                            Số lượng tối thiểu trong kho
+                            {% set type = 'number' %}
+                            {% set name = 'min_stock' %}
+                            {% set required = True %}
+                            {% set placeholder = 'Số lượng tối thiểu' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="productadd-field">
+                            Số lượng tối đa trong kho
+                            {% set type = 'number' %}
+                            {% set name = 'max_stock' %}
+                            {% set required = True %}
+                            {% set placeholder = 'Số lượng tối đa' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+                    <div class="productadd-fields">
+                        <div class="productadd-field">
+                            Kho lưu trữ
+                            {% set dropdown_id = 'storage-dropdown' %}
+                            {% set name = 'storage_location' %}
+                            {% set options = ['Chilled Storage', 'Ambient Storage', 'Frozen Storage'] %}
+                            {% set selected_text = 'Chọn kho lưu trữ' %}
+                            {% include 'components/dropdown.html' %}
+                        </div>
+                        <div class="productadd-field">
+                            Hình ảnh sản phẩm
+                            <div class="image-upload-container">
+                                <label for="images" class="image-upload-label">
+                                    <span>Chọn hình ảnh</span>
+                                    <input type="file" name="images" id="images" accept="image/*" multiple hidden>
+                                </label>
+                                <div class="image-upload-preview" id="image-preview"></div>
+                                <small>(Tối đa 5 hình)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="productadd-btns">
+                        <a style="text-decoration: none" href="/manager/product/list">
+                            {% include 'components/exit_button.html' %}
+                        </a>
+                        {% include 'components/save_button.html' %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('add-product-form');
+            const messageDiv = document.getElementById('message');
+            const skuInput = document.getElementById('sku');
+            const imageInput = document.getElementById('images');
+            const imagePreview = document.getElementById('image-preview');
+
+            // Hàm preview hình ảnh
+            function previewImages(event) {
+                imagePreview.innerHTML = '';
+                const files = event.target.files;
+                if (files.length > 5) {
+                    alert('Chỉ được upload tối đa 5 hình!');
+                    imageInput.value = '';
+                    return;
+                }
+                for (let file of files) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.className = 'image-preview';
+                        imagePreview.appendChild(img);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            // Gắn sự kiện onchange cho image input
+            imageInput.addEventListener('change', previewImages);
+
+            // Hàm lấy SKU tự động
+            async function fetchNextSku() {
+                try {
+                    const response = await fetch('/manager/product/next-sku', {
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                        }
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Failed to fetch next SKU');
+                    }
+                    const data = await response.json();
+                    skuInput.value = data.sku;
+                } catch (error) {
+                    console.error('Error fetching SKU:', error);
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: Không thể lấy SKU. Vui lòng thử lại sau.';
+                }
+            }
+
+            // Hàm ánh xạ tên sang id
+            function getIdFromName(options, name) {
+                const option = options.find(opt => opt.name === name);
+                return option ? option.id.toString() : null;
+            }
+
+            // Gọi hàm lấy SKU khi trang tải
+            fetchNextSku();
+
+            // Xử lý submit form
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const categoryName = formData.get('category_id');
+                const supplierName = formData.get('supplier_id');
+
+                // Ánh xạ tên sang ID
+                const categoryId = getIdFromName({{ category_options|tojson|safe }}, categoryName);
+                const supplierId = getIdFromName({{ supplier_options|tojson|safe }}, supplierName);
+
+                // Kiểm tra dữ liệu hợp lệ
+                if (!categoryId || !supplierId) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: Vui lòng chọn danh mục và nhà cung cấp hợp lệ.';
+                    return;
+                }
+
+                // Cập nhật FormData với ID
+                formData.set('category_id', categoryId);
+                formData.set('supplier_id', supplierId);
+
+                try {
+                    const response = await fetch('/manager/product/', {
+                        method: 'POST',
+                        credentials: 'include',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                        }
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Failed to add product');
+                    }
+
+                    const result = await response.json();
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'success';
+                    messageDiv.textContent = 'Thêm sản phẩm thành công';
+                    setTimeout(() => {
+                        window.location.href = `/manager/product/update/${result.id}`;
+                    }, 1000);
+                } catch (error) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: ' + error.message;
+                }
+            });
+        });
+
+        // Gán lại handleOptionClick cho dropdown thông thường
+        function handleOptionClick(option, dropdown) {
+            const hiddenInput = dropdown.querySelector('input[type="hidden"]');
+            const selectedText = dropdown.querySelector('.selected-text');
+            const value = option.getAttribute('data-value');
+            hiddenInput.value = value;
+            selectedText.textContent = value;
+            dropdown.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
+            option.classList.add('selected');
+            dropdown.querySelector('.dropdown-option').classList.remove('show');
+        }
+    </script>
+</body>
+</html>
