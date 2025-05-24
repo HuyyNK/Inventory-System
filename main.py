@@ -8,7 +8,6 @@ from routers.manager.user import router as manager_user
 from routers.manager.product import router as manager_product_router
 from routers.manager.category import router as manager_category_router
 
-
 app = FastAPI()
 
 # Mount static files
@@ -27,3 +26,6 @@ app.include_router(manager_user)
 app.include_router(manager_product_router)
 app.include_router(manager_category_router)
 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

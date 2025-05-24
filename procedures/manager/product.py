@@ -1,12 +1,39 @@
-from models.product_sql import get_products_sql, add_product_sql, get_max_sku
-from pathlib import Path
+from datetime import datetime
 from database import get_db_connection
+from models.product_sql import get_products_sql, add_product_sql, get_max_sku, update_product_sql, get_inbound_details_sql
+from pathlib import Path
+import os
+import shutil
+
 
 def get_products():
-    products = get_products_sql()
-    if not products:
+    try:
+        products = get_products_sql()
+        if not products:
+            return []
+        # Chuyển đổi datetime thành chuỗi ISO
+        processed_products = []
+        for product in products:
+            processed_product = {
+                key: value.isoformat() if isinstance(value, datetime) else value
+                for key, value in product.items()
+            }
+            processed_products.append(processed_product)
+        return processed_products
+    except Exception as e:
+        raise
+
+def get_product_by_id(product_id):
+    product = get_products_sql(product_id)
+    if not product:
+        raise Exception(f"Product with ID {product_id} not found")
+    return product
+
+def get_inbound_details(product_id):
+    details = get_inbound_details_sql(product_id)
+    if not details:
         return []
-    return products
+    return details
 
 def get_next_sku():
     try:
@@ -31,7 +58,7 @@ def add_product(product_data, images):
         (
             product_data["sku"],
             product_data["name"],
-            product_data["unit"],  # Add unit to the query
+            product_data["unit"],
             product_data["description"],
             product_data["cost_price"],
             product_data["market_price"],
@@ -57,3 +84,34 @@ def add_product(product_data, images):
     cursor.close()
     conn.close()
     return product_id
+
+def update_product(product_id, product_data, images):
+    # Cập nhật thông tin sản phẩm trong database
+    update_product_sql(product_id, product_data)
+
+    # Xử lý hình ảnh
+    image_dir = Path(f"static/images/product/{product_id}")
+    if images:  # Chỉ xóa và tạo lại thư mục nếu có ảnh mới
+        if image_dir.exists():
+            shutil.rmtree(image_dir)
+        image_dir.mkdir(parents=True, exist_ok=True)
+        for i, image in enumerate(images[:5]):
+            file_path = image_dir / f"image_{i+1}.{image.filename.split('.')[-1]}"
+            with open(file_path, "wb") as buffer:
+                buffer.write(image.file.read())
+    else:  # Nếu không có ảnh mới, giữ nguyên thư mục hiện tại
+        if not image_dir.exists():
+            image_dir.mkdir(parents=True, exist_ok=True)
+
+def get_product_images(product_id):
+    image_dir = Path(f"static/images/product/{product_id}")
+    if not image_dir.exists():
+        return []
+    images = []
+    for i in range(1, 6):  # Tối đa 5 hình
+        for ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:  # Thêm 'webp'
+            img_path = image_dir / f"image_{i}.{ext}"
+            if img_path.exists():
+                images.append(f"/static/images/product/{product_id}/image_{i}.{ext}")
+                break
+    return images
