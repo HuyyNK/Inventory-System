@@ -116,6 +116,11 @@
     width: 100%;
     color: #000;
   }
-  
+  .dropdown-option {
+    display: none;
+  }
+  .dropdown-option.show {
+      display: block;
+  }
   
   
