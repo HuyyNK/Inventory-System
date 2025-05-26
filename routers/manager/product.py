@@ -6,15 +6,11 @@ from procedures.manager.product import get_products, get_next_sku, add_product, 
 from procedures.manager.category import get_categories_sql
 from procedures.manager.supplier import get_suppliers_sql
 
-
 router = APIRouter(prefix="/manager/product", tags=["manager_products"])
 templates = Jinja2Templates(directory="templates")
 
 # -----------------------------------------------
 # HTML ROUTES
-# Các route này trả về nội dung HTML, được sử dụng để render giao diện người dùng.
-# Mục đích: Cung cấp các trang web (list.html, add.html, update.html) để người dùng tương tác.
-# Đặt các route tĩnh (như /list, /add) trước route động (như /{product_id}) để tránh xung đột.
 # -----------------------------------------------
 @router.get("/list", response_class=HTMLResponse, include_in_schema=False)
 async def list_products_page(request: Request, user: dict = Depends(get_current_user)):
@@ -56,10 +52,7 @@ async def update_product_page(request: Request, product_id: int, user: dict = De
 
 # -----------------------------------------------
 # JSON ROUTES
-# Các route này trả về dữ liệu JSON, được sử dụng cho các yêu cầu AJAX/Fetch từ frontend.
-# Mục đích: Cung cấp dữ liệu động để frontend xử lý (lấy danh sách, thêm, sửa, xóa sản phẩm).
 # -----------------------------------------------
-
 @router.get("/", response_model=list[dict])
 async def list_products_api(request: Request, user: dict = Depends(get_current_user)):
     try:
@@ -149,7 +142,6 @@ async def update_product_api(
         except ValueError:
             raise HTTPException(status_code=400, detail="Category ID and Supplier ID must be valid integers")
 
-        # Kiểm tra storage_location
         valid_storage_locations = ['Chilled Storage', 'Ambient Storage', 'Frozen Storage']
         if storage_location and storage_location not in valid_storage_locations:
             raise HTTPException(status_code=400, detail="Invalid storage location")

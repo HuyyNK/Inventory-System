@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -199,8 +199,8 @@
             line-height: 3;
         }
 
-        detail-table a,
-        detail-table button {
+        .detail-table a,
+        .detail-table button {
             text-decoration: none;
             background-color: transparent;
             border: none;
@@ -381,8 +381,8 @@
                                         <td>{{ detail.current_quantity }}</td>
                                         <td>{{ detail.unit_price }}</td>
                                         <td>{{ detail.total_amount }}</td>
-                                        <td>{{ detail.manufacturing_date.strftime('%d/%m/%Y') if detail.manufacturing_date else '' }}</td>
-                                        <td>{{ detail.expiry_date.strftime('%d/%m/%Y') if detail.expiry_date else '' }}</td>
+                                        <td class="date-manufacturing">{{ detail.manufacturing_date }}</td>
+                                        <td class="date-expiry">{{ detail.expiry_date }}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -408,6 +408,34 @@
             const imagePreview = document.getElementById('image-preview');
             const productId = document.querySelector('input[name="product_id"]').value;
 
+            // Hàm định dạng ngày tháng
+            function formatDate(isoString) {
+                if (!isoString) return '';
+                const date = new Date(isoString);
+                if (isNaN(date)) return isoString; // Nếu không phải ngày hợp lệ, trả về chuỗi gốc
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+
+            // Áp dụng định dạng ngày tháng cho bảng chi tiết
+            document.querySelectorAll('#inbound-details tr').forEach(row => {
+                const manufacturingCell = row.querySelector('.date-manufacturing');
+                const expiryCell = row.querySelector('.date-expiry');
+                const inventoryExpiryCell = row.querySelector('.date-inventory-expiry');
+                if (manufacturingCell && manufacturingCell.textContent) {
+                    manufacturingCell.textContent = formatDate(manufacturingCell.textContent);
+                }
+                if (expiryCell && expiryCell.textContent) {
+                    expiryCell.textContent = formatDate(expiryCell.textContent);
+                }
+                if (inventoryExpiryCell && inventoryExpiryCell.textContent) {
+                    inventoryExpiryCell.textContent = formatDate(inventoryExpiryCell.textContent);
+                }
+            });
+
+            // Xử lý preview hình ảnh
             function previewImages(event) {
                 imagePreview.innerHTML = '';
                 const files = event.target.files;
@@ -430,6 +458,7 @@
 
             imageInput.addEventListener('change', previewImages);
 
+            // Xử lý submit form
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
@@ -464,7 +493,7 @@
                             return;
                         }
                         const errorData = await response.json();
-                        throw new Error(errorData.detail || 'Failed to update product');
+                        throw new Error(errorData.detail || 'Không thể cập nhật sản phẩm');
                     }
 
                     const result = await response.json();

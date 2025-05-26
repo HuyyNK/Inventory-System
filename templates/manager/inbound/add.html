@@ -39,7 +39,6 @@
             height: 40px;
             border-radius: 10px;
         }
-
         .btn-add-product:hover {
             background-color: #0198c7;
         }
@@ -75,14 +74,25 @@
                             {% set name = 'date' %}
                             {% set value = today %}
                             {% set required = True %}
+                            {% set readonly = True %}
                             {% include 'components/input.html' %}
                         </div>
                     </div>
                     <div class="inboundadd-fields">
                         <div class="inboundadd-field">
+                            Người nhập hàng
+                            {% set type = 'text' %}
+                            {% set name = 'created_by_name' %}
+                            {% set value = user.full_name if user else '' %}
+                            {% set readonly = True %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="inboundadd-field">
                             Ghi chú
                             {% set type = 'text' %}
                             {% set name = 'notes' %}
+                            {% set readonly = False %}
+                            {% set value = '' %}
                             {% set placeholder = 'Ghi chú' %}
                             {% include 'components/input.html' %}
                         </div>
@@ -199,7 +209,8 @@
                             option.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 const value = option.getAttribute('data-value');
-                                hiddenInput.value = value;
+                                const id = option.getAttribute('data-id') || value; // Lưu id nếu có, nếu không thì dùng value
+                                hiddenInput.value = id; // Đồng bộ với logic của dropdown_select.html
                                 selectedText.textContent = value || selectedText.textContent;
 
                                 dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
@@ -207,7 +218,7 @@
                                 dropdownMenu.classList.remove('show');
 
                                 if (dropdownId === 'supplier-dropdown') {
-                                    updateProductDropdowns(value);
+                                    updateProductDropdowns(id); // Dùng id thay vì name
                                 }
                             });
                         });
@@ -222,22 +233,15 @@
             }
 
             // Hàm cập nhật danh sách sản phẩm dựa trên nhà cung cấp
-            async function updateProductDropdowns(supplierName) {
-                console.log('Updating product dropdowns for supplier:', supplierName);
-                if (!supplierName) {
+            async function updateProductDropdowns(supplierId) {
+                if (!supplierId) {
                     currentSupplierProducts = originalProducts;
                     resetProductDropdowns();
                     return;
                 }
 
-                const supplier = suppliers.find(s => s.name === supplierName);
-                if (!supplier) {
-                    console.error('Supplier not found:', supplierName);
-                    return;
-                }
-
                 try {
-                    const response = await fetch(`/manager/inbound/products/by-supplier/${supplier.id}`, {
+                    const response = await fetch(`/manager/inbound/products/by-supplier/${supplierId}`, {
                         credentials: 'include',
                         headers: { 'Accept': 'application/json' }
                     });
@@ -247,60 +251,7 @@
                     }
 
                     currentSupplierProducts = await response.json();
-                    const productRows = document.querySelectorAll('.product-row');
-                    productRows.forEach(row => {
-                        const index = row.getAttribute('data-index');
-                        const dropdownContainer = row.querySelector(`[data-dropdown-id="product-dropdown-${index}"]`);
-                        const dropdownMenu = dropdownContainer.querySelector(`#product-dropdown-${index}-menu`);
-                        const dropdownToggle = dropdownContainer.querySelector(`#product-dropdown-${index}-toggle`);
-                        const hiddenInput = dropdownContainer.querySelector(`input[name="products[${index}][product_id]"]`);
-                        const selectedText = dropdownToggle.querySelector('.selected-text');
-
-                        const currentValue = hiddenInput.value;
-
-                        dropdownMenu.innerHTML = '';
-
-                        const defaultOption = document.createElement('div');
-                        defaultOption.className = 'dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150';
-                        defaultOption.setAttribute('data-value', '');
-                        defaultOption.textContent = 'Chọn sản phẩm';
-                        defaultOption.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            hiddenInput.value = '';
-                            selectedText.textContent = 'Chọn sản phẩm';
-                            dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
-                            defaultOption.classList.add('bg-blue-100', 'text-blue-700');
-                            dropdownMenu.classList.remove('show');
-                        });
-                        dropdownMenu.appendChild(defaultOption);
-
-                        currentSupplierProducts.forEach(product => {
-                            const option = document.createElement('div');
-                            option.className = 'dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150';
-                            option.setAttribute('data-value', product.name);
-                            option.textContent = product.name;
-                            option.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                hiddenInput.value = product.name;
-                                selectedText.textContent = product.name;
-                                dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
-                                option.classList.add('bg-blue-100', 'text-blue-700');
-                                dropdownMenu.classList.remove('show');
-                            });
-                            dropdownMenu.appendChild(option);
-
-                            if (product.name === currentValue) {
-                                hiddenInput.value = product.name;
-                                selectedText.textContent = product.name;
-                                option.classList.add('bg-blue-100', 'text-blue-700');
-                            }
-                        });
-
-                        if (currentValue && !currentSupplierProducts.some(p => p.name === currentValue)) {
-                            hiddenInput.value = '';
-                            selectedText.textContent = 'Chọn sản phẩm';
-                        }
-                    });
+                    resetProductDropdowns();
                 } catch (error) {
                     console.error('Error updating product dropdowns:', error);
                     messageDiv.style.display = 'block';
@@ -309,7 +260,7 @@
                 }
             }
 
-            // Hàm reset danh sách sản phẩm về tất cả sản phẩm
+            // Hàm reset danh sách sản phẩm về danh sách hiện tại (lọc theo nhà cung cấp)
             function resetProductDropdowns() {
                 const productRows = document.querySelectorAll('.product-row');
                 productRows.forEach(row => {
@@ -327,6 +278,7 @@
                     const defaultOption = document.createElement('div');
                     defaultOption.className = 'dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150';
                     defaultOption.setAttribute('data-value', '');
+                    defaultOption.setAttribute('data-id', '');
                     defaultOption.textContent = 'Chọn sản phẩm';
                     defaultOption.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -338,14 +290,15 @@
                     });
                     dropdownMenu.appendChild(defaultOption);
 
-                    originalProducts.forEach(product => {
+                    currentSupplierProducts.forEach(product => {
                         const option = document.createElement('div');
                         option.className = 'dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150';
                         option.setAttribute('data-value', product.name);
+                        option.setAttribute('data-id', product.id); // Thêm id để đồng bộ
                         option.textContent = product.name;
                         option.addEventListener('click', (e) => {
                             e.stopPropagation();
-                            hiddenInput.value = product.name;
+                            hiddenInput.value = product.id; // Lưu id thay vì name
                             selectedText.textContent = product.name;
                             dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
                             option.classList.add('bg-blue-100', 'text-blue-700');
@@ -353,18 +306,22 @@
                         });
                         dropdownMenu.appendChild(option);
 
-                        if (product.name === currentValue) {
-                            hiddenInput.value = product.name;
+                        if (product.id == currentValue) { // So sánh với id
+                            hiddenInput.value = product.id;
                             selectedText.textContent = product.name;
                             option.classList.add('bg-blue-100', 'text-blue-700');
                         }
                     });
+
+                    if (currentValue && !currentSupplierProducts.some(p => p.id == currentValue)) {
+                        hiddenInput.value = '';
+                        selectedText.textContent = 'Chọn sản phẩm';
+                    }
                 });
             }
 
             // Tính tổng tiền cho mỗi dòng
             function calculateTotals() {
-                console.log('Calculating totals...');
                 const rows = document.querySelectorAll('.product-row');
                 let grandTotal = 0;
 
@@ -376,7 +333,7 @@
                     const unitPrice = parseFloat(unitPriceInput.value) || 0;
                     const quantity = parseFloat(quantityInput.value) || 0;
                     const total = unitPrice * quantity;
-                    totalInput.value = isNaN(total) ? '0' : total.toLocaleString('vi-VN') + ' đ';
+                    totalInput.value = isNaN(total) ? '0 đ' : total.toLocaleString('vi-VN') + ' đ';
                     grandTotal += total;
                 });
 
@@ -386,8 +343,7 @@
 
             // Thêm dòng sản phẩm mới bằng AJAX
             window.addProductRow = async function(e) {
-                if (e) e.preventDefault(); // Ngăn submit form
-                console.log('Adding new product row...');
+                if (e) e.preventDefault();
                 const container = document.getElementById('productContainer');
                 rowIndex++;
 
@@ -406,7 +362,6 @@
                     tempDiv.innerHTML = html;
                     const newRow = tempDiv.firstElementChild;
                     container.appendChild(newRow);
-                    console.log('New row added:', newRow);
 
                     // Thêm sự kiện tính tổng khi thay đổi giá hoặc số lượng
                     newRow.querySelectorAll('input[type="number"]').forEach(input => {
@@ -422,9 +377,9 @@
                     // Cập nhật dropdown sản phẩm mới dựa trên nhà cung cấp hiện tại
                     const supplierDropdown = document.querySelector('#supplier-dropdown-value');
                     if (supplierDropdown && supplierDropdown.value) {
-                        updateSingleProductDropdown(newRow, supplierDropdown.value);
+                        updateProductDropdowns(supplierDropdown.value);
                     } else {
-                        resetSingleProductDropdown(newRow);
+                        resetProductDropdowns();
                     }
 
                     calculateTotals();
@@ -435,119 +390,6 @@
                     messageDiv.textContent = 'Lỗi: Không thể thêm dòng sản phẩm mới.';
                 }
             };
-
-            // Hàm cập nhật dropdown sản phẩm cho một dòng cụ thể
-            async function updateSingleProductDropdown(row, supplierName) {
-                const index = row.getAttribute('data-index');
-                const dropdownContainer = row.querySelector(`[data-dropdown-id="product-dropdown-${index}"]`);
-                const dropdownMenu = dropdownContainer.querySelector(`#product-dropdown-${index}-menu`);
-                const dropdownToggle = dropdownContainer.querySelector(`#product-dropdown-${index}-toggle`);
-                const hiddenInput = dropdownContainer.querySelector(`input[name="products[${index}][product_id]"]`);
-                const selectedText = dropdownToggle.querySelector('.selected-text');
-
-                const supplier = suppliers.find(s => s.name === supplierName);
-                if (!supplier) {
-                    console.error('Supplier not found:', supplierName);
-                    return;
-                }
-
-                try {
-                    const response = await fetch(`/manager/inbound/products/by-supplier/${supplier.id}`, {
-                        credentials: 'include',
-                        headers: { 'Accept': 'application/json' }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch products for supplier');
-                    }
-
-                    const products = await response.json();
-                    dropdownMenu.innerHTML = '';
-
-                    const defaultOption = document.createElement('div');
-                    defaultOption.className = 'dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150';
-                    defaultOption.setAttribute('data-value', '');
-                    defaultOption.textContent = 'Chọn sản phẩm';
-                    defaultOption.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        hiddenInput.value = '';
-                        selectedText.textContent = 'Chọn sản phẩm';
-                        dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
-                        defaultOption.classList.add('bg-blue-100', 'text-blue-700');
-                        dropdownMenu.classList.remove('show');
-                    });
-                    dropdownMenu.appendChild(defaultOption);
-
-                    products.forEach(product => {
-                        const option = document.createElement('div');
-                        option.className = 'dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150';
-                        option.setAttribute('data-value', product.name);
-                        option.textContent = product.name;
-                        option.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            hiddenInput.value = product.name;
-                            selectedText.textContent = product.name;
-                            dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
-                            option.classList.add('bg-blue-100', 'text-blue-700');
-                            dropdownMenu.classList.remove('show');
-                        });
-                        dropdownMenu.appendChild(option);
-                    });
-
-                    hiddenInput.value = '';
-                    selectedText.textContent = 'Chọn sản phẩm';
-                } catch (error) {
-                    console.error('Error updating product dropdown:', error);
-                    messageDiv.style.display = 'block';
-                    messageDiv.className = 'error';
-                    messageDiv.textContent = 'Lỗi: Không thể tải danh sách sản phẩm.';
-                }
-            }
-
-            // Hàm reset dropdown sản phẩm cho một dòng cụ thể
-            function resetSingleProductDropdown(row) {
-                const index = row.getAttribute('data-index');
-                const dropdownContainer = row.querySelector(`[data-dropdown-id="product-dropdown-${index}"]`);
-                const dropdownMenu = dropdownContainer.querySelector(`#product-dropdown-${index}-menu`);
-                const dropdownToggle = dropdownContainer.querySelector(`#product-dropdown-${index}-toggle`);
-                const hiddenInput = dropdownContainer.querySelector(`input[name="products[${index}][product_id]"]`);
-                const selectedText = dropdownToggle.querySelector('.selected-text');
-
-                dropdownMenu.innerHTML = '';
-
-                const defaultOption = document.createElement('div');
-                defaultOption.className = 'dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150';
-                defaultOption.setAttribute('data-value', '');
-                defaultOption.textContent = 'Chọn sản phẩm';
-                defaultOption.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    hiddenInput.value = '';
-                    selectedText.textContent = 'Chọn sản phẩm';
-                    dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
-                    defaultOption.classList.add('bg-blue-100', 'text-blue-700');
-                    dropdownMenu.classList.remove('show');
-                });
-                dropdownMenu.appendChild(defaultOption);
-
-                originalProducts.forEach(product => {
-                    const option = document.createElement('div');
-                    option.className = 'dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150';
-                    option.setAttribute('data-value', product.name);
-                    option.textContent = product.name;
-                    option.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        hiddenInput.value = product.name;
-                        selectedText.textContent = product.name;
-                        dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
-                        option.classList.add('bg-blue-100', 'text-blue-700');
-                        dropdownMenu.classList.remove('show');
-                    });
-                    dropdownMenu.appendChild(option);
-                });
-
-                hiddenInput.value = '';
-                selectedText.textContent = 'Chọn sản phẩm';
-            }
 
             // Gắn sự kiện tính tổng cho các ô hiện tại
             document.querySelectorAll('input[type="number"]').forEach(input => {
@@ -562,22 +404,13 @@
             // Tính tổng ban đầu
             calculateTotals();
 
-            // Ánh xạ tên nhà cung cấp và sản phẩm sang ID
-            function getIdFromName(options, name) {
-                console.log('Mapping name to ID:', name, options);
-                const option = options.find(opt => opt.name === name);
-                return option ? option.id.toString() : null;
-            }
-
             // Xử lý submit form
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
                 const formData = new FormData(form);
-                const supplierName = formData.get('supplier_id');
-                console.log('Supplier name selected:', supplierName);
+                const supplierId = formData.get('supplier_id');
 
-                const supplierId = getIdFromName(suppliers, supplierName);
                 if (!supplierId) {
                     messageDiv.style.display = 'block';
                     messageDiv.className = 'error';
@@ -585,27 +418,17 @@
                     return;
                 }
 
-                formData.set('supplier_id', supplierId);
-
                 const products = [];
                 let index = 0;
                 while (true) {
                     const productIdKey = `products[${index}][product_id]`;
                     if (!formData.has(productIdKey)) break;
 
-                    const productName = formData.get(productIdKey);
-                    if (!productName) {
-                        messageDiv.style.display = 'block';
-                        messageDiv.className = 'error';
-                        messageDiv.textContent = `Lỗi: Vui lòng chọn sản phẩm hợp lệ ở dòng ${index + 1}.`;
-                        return;
-                    }
-
-                    const productId = getIdFromName(currentSupplierProducts, productName);
+                    const productId = formData.get(productIdKey);
                     if (!productId) {
                         messageDiv.style.display = 'block';
                         messageDiv.className = 'error';
-                        messageDiv.textContent = `Lỗi: Sản phẩm không hợp lệ ở dòng ${index + 1}.`;
+                        messageDiv.textContent = `Lỗi: Vui lòng chọn sản phẩm hợp lệ ở dòng ${index + 1}.`;
                         return;
                     }
 
@@ -617,7 +440,6 @@
                         expiry_date: formData.get(`products[${index}][expiry_date]`),
                     };
                     products.push(product);
-                    formData.set(`products[${index}][product_id]`, productId);
                     index++;
                 }
 

@@ -1,50 +1,96 @@
 <div class="dropdown-select-container" data-dropdown-id="{{ dropdown_id }}">
-    <div class="dropdown-toggle bg-white border border-gray-300 rounded-lg shadow-sm flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-gray-50 transition-all duration-200" id="{{ dropdown_id }}-toggle">
-        <span class="selected-text text-gray-700 font-medium">{{ selected_text }}</span>
-        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" view Boxes="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <div class="dropdown-toggle" id="{{ dropdown_id }}-toggle">
+        <span class="selected-text">{{ selected_text }}</span>
+        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
         </svg>
     </div>
-    <div class="dropdown-menu mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden z-10" id="{{ dropdown_id }}-menu">
-        <div class="dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150" data-value="">{{ selected_text }}</div>
-        {% for option in options %}
-            <div class="dropdown-item px-4 py-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 cursor-pointer transition-all duration-150" data-value="{{ option }}">{{ option }}</div>
-        {% endfor %}
+    <div class="dropdown-menu" id="{{ dropdown_id }}-menu">
+        <div class="dropdown-item" data-value="" data-id="">{{ selected_text }}</div>
+        {% if dropdown_id == 'supplier-dropdown' %}
+            {% for option in suppliers %}
+                <div class="dropdown-item" data-value="{{ option.name }}" data-id="{{ option.id }}">{{ option.name }}</div>
+            {% endfor %}
+        {% else %}
+            {% for option in options %}
+                <div class="dropdown-item" data-value="{{ option }}" data-id="">{{ option }}</div>
+            {% endfor %}
+        {% endif %}
     </div>
     <input type="hidden" name="{{ name }}" id="{{ dropdown_id }}-value" value="">
 
     <style>
         .dropdown-select-container {
+            display: inline-flex;
+            align-items: flex-start;
             position: relative;
             width: 100%;
+            white-space: nowrap;
+        }
+
+        .dropdown-toggle {
+            display: flex;
+            width: 100%;
+            padding: 6px 12px;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 60, 60, 0.20);
+            background-color: #FFF;
+            color: #000;
+            font-family: Inter;
+            font-size: 15px; /* Thay đổi từ 14px thành 16px */
+            font-style: normal;
+            font-weight: 400;
+            line-height: 24px;
+            cursor: pointer;
         }
 
         .dropdown-menu {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            align-items: flex-start; /* Thay đổi từ center thành flex-start để căn trái */
+            gap: 5px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 60, 60, 0.20);
+            background: var(--White, #FFF);
             position: absolute;
             top: 100%;
             left: 0;
-            right: 0;
+            z-index: 2000;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .dropdown-item {
+            display: flex;
+            padding: 6px 8px 6px 32px;
+            justify-content: flex-start; /* Thay đổi từ center thành flex-start để căn trái */
+            align-items: center;
+            gap: 10px;
+            align-self: stretch;
+
+            width: 100%;
+            background-color: #FFF;
+            color: #000;
+            font-family: Inter;
+            font-size: 15px; /* Thay đổi từ 14px thành 16px */
+            font-style: normal;
+            font-weight: 400;
+            line-height: 24px;
+            cursor: pointer;
+
+
         }
 
         .dropdown-menu.show {
-            display: block !important;
+            display: flex;
         }
 
-        .dropdown-item:last-child {
-            border-bottom: none;
-        }
-
-        .dropdown-menu::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .dropdown-menu::-webkit-scrollbar-thumb {
-            background-color: rgb(0, 0, 0);
-            border-radius: 3px;
-        }
-
-        .dropdown-menu::-webkit-scrollbar-track {
-            background-color: rgb(255, 255, 255);
+        .dropdown-item:hover {
+            background-color: #6DCFFB;
         }
     </style>
 </div>
