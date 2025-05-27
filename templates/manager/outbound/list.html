@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danh sách phiếu nhập hàng</title>
+    <title>Danh sách phiếu xuất hàng</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/manager_inbound_list.css">
+    <link rel="stylesheet" href="/static/css/manager_outbound_list.css">
 </head>
 <body>
     <div class="product-lists">
@@ -17,14 +17,14 @@
                 {% include 'components/sidebar_manager.html' %}
             </div>
             <div class="body-right">
-                Quản lý / Danh sách phiếu nhập hàng
+                Quản lý / Xuất hàng / Danh sách
                 <div class="product-tool">
                     <div class="tool-search">
                         {% include 'components/searchbar.html' %}
                     </div>
                     <div class="tool-add">
-                        <a style="text-decoration: none" href="/manager/inbound/add">
-                            {% set button_text = 'Thêm phiếu nhập' %}
+                        <a style="text-decoration: none" href="/manager/outbound/add">
+                            {% set button_text = 'Thêm phiếu xuất' %}
                             {% include 'components/add.html' %}
                         </a>
                     </div>
@@ -32,18 +32,20 @@
                 <div id="message" style="display: none;"></div>
                 <div class="tabless">
                     <div id="table-container">
-                        <table id="inbound-table">
+                        <table id="outbound-table">
                             <thead>
                                 <tr>
                                     <th>STT</th>
-                                    <th>Mã phiếu nhập</th>
+                                    <th>Mã phiếu</th>
+                                    <th>Tên khách hàng</th>
                                     <th>Tổng tiền</th>
-                                    <th>Tên nhà cung cấp</th>
-                                    <th>Ngày nhập</th>
+                                    <th>Người tạo</th>
+                                    <th>Ngày xuất</th>
+                                    <th>Loại xuất</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody id="inbound-list"></tbody>
+                            <tbody id="outbound-list"></tbody>
                         </table>
                         <div id="pagination-container"></div>
                     </div>
@@ -53,16 +55,16 @@
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            const tableBody = document.getElementById('inbound-list');
+            const tableBody = document.getElementById('outbound-list');
             const paginationContainer = document.getElementById('pagination-container');
             const messageDiv = document.getElementById('message');
 
-            let allInbounds = [];
+            let allOutbounds = [];
 
-            // Lấy danh sách phiếu nhập từ API
-            async function fetchInbounds() {
+            // Lấy danh sách phiếu xuất từ API
+            async function fetchOutbounds() {
                 try {
-                    const response = await fetch('/manager/inbound/', {
+                    const response = await fetch('/manager/outbound/', {
                         credentials: 'include',
                         headers: {
                             'Accept': 'application/json'
@@ -73,14 +75,14 @@
                             window.location.href = '/login';
                             return [];
                         }
-                        throw new Error(`Failed to fetch inbounds: ${response.status} - ${response.statusText}`);
+                        throw new Error(`Failed to fetch outbounds: ${response.status} - ${response.statusText}`);
                     }
                     const contentType = response.headers.get('content-type');
                     if (!contentType || !contentType.includes('application/json')) {
                         throw new Error('Response is not JSON');
                     }
                     const data = await response.json();
-                    console.log('Fetched inbounds:', data); // Debug log
+                    console.log('Fetched outbounds:', data); // Debug log
                     return Array.isArray(data) ? data : [];
                 } catch (error) {
                     console.error('Fetch error:', error);
@@ -91,22 +93,24 @@
                 }
             }
 
-            // Render danh sách phiếu nhập
-            function renderInbounds(inbounds, page, rowsPerPage) {
+            // Render danh sách phiếu xuất
+            function renderOutbounds(outbounds, page, rowsPerPage) {
                 tableBody.innerHTML = '';
                 const start = (page - 1) * rowsPerPage;
                 const end = start + rowsPerPage;
-                inbounds.slice(start, end).forEach((inbound, index) => {
+                outbounds.slice(start, end).forEach((outbound, index) => {
                     const stt = start + index + 1;
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${stt}</td>
-                        <td>${inbound.id || ''}</td>
-                        <td>${(inbound.total_amount || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }) || '0 VND'}</td>
-                        <td>${inbound.supplier_name || ''}</td>
-                        <td>${inbound.date ? new Date(inbound.date).toLocaleDateString('vi-VN') : ''}</td>
+                        <td>${outbound.id || ''}</td>
+                        <td>${outbound.customer_name || 'Không xác định'}</td>
+                        <td>${(outbound.total_amount || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }) || '0 VND'}</td>
+                        <td>${outbound.created_by_name || 'Không xác định'}</td>
+                        <td>${outbound.date ? new Date(outbound.date).toLocaleDateString('vi-VN') : ''}</td>
+                        <td>${outbound.outbound_type || 'Không xác định'}</td>
                         <td>
-                            <a href="/manager/inbound/detail/${inbound.id || ''}" style="display: flex; align-items: center; height: 100%;">
+                            <a href="/manager/outbound/detail/${outbound.id || ''}" style="display: flex; align-items: center; height: 100%;">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="25" height="24" viewBox="0 0 25 24" fill="none">
                                     <path d="M15.3333 8C15.3333 9.654 13.9873 11 12.3333 11C10.6793 11 9.33334 9.654 9.33334 8C9.33334 6.346 10.6793 5 12.3333 5C13.9873 5 15.3333 6.346 15.3333 8ZM24.3333 7.551C24.3333 7.551 20.0813 16 12.3483 16C5.16834 16 0.333344 7.551 0.333344 7.551C0.333344 7.551 4.77934 0 12.3483 0C20.0423 0 24.3333 7.551 24.3333 7.551ZM17.3333 8C17.3333 5.243 15.0903 3 12.3333 3C9.57634 3 7.33334 5.243 7.33334 8C7.33334 10.757 9.57634 13 12.3333 13C15.0903 13 17.3333 10.757 17.3333 8Z" fill="#E14177" />
                                 </svg>
@@ -118,14 +122,14 @@
             }
 
             // Phân trang
-            function initializeTablePagination(inbounds, rowsPerPage) {
-                const totalRows = inbounds.length;
+            function initializeTablePagination(outbounds, rowsPerPage) {
+                const totalRows = outbounds.length;
                 const totalPages = Math.ceil(totalRows / rowsPerPage);
                 let currentPage = 1;
 
                 function showPage(page) {
                     currentPage = page;
-                    renderInbounds(inbounds, page, rowsPerPage);
+                    renderOutbounds(outbounds, page, rowsPerPage);
                     updatePagination();
                 }
 
@@ -162,18 +166,18 @@
                 if (totalRows > 0) showPage(1);
             }
 
-            // Tải danh sách phiếu nhập
-            async function loadInbounds() {
-                allInbounds = await fetchInbounds();
-                if (allInbounds.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="6">Không có dữ liệu phiếu nhập.</td></tr>';
+            // Tải danh sách phiếu xuất
+            async function loadOutbounds() {
+                allOutbounds = await fetchOutbounds();
+                if (allOutbounds.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="8">Không có dữ liệu phiếu xuất.</td></tr>';
                     paginationContainer.innerHTML = '';
                     return;
                 }
-                initializeTablePagination(allInbounds, 10);
+                initializeTablePagination(allOutbounds, 10);
             }
 
-            loadInbounds();
+            loadOutbounds();
         });
     </script>
 </body>

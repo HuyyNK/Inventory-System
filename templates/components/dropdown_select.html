@@ -11,6 +11,11 @@
             {% for option in suppliers %}
                 <div class="dropdown-item" data-value="{{ option.name }}" data-id="{{ option.id }}">{{ option.name }}</div>
             {% endfor %}
+        {% elif 'product-dropdown' in dropdown_id %}
+            {% for option in options %}
+                {% set product = products|selectattr('name', 'equalto', option)|first %}
+                <div class="dropdown-item" data-value="{{ option }}" data-id="{{ product.id if product else '' }}">{{ option }}</div>
+            {% endfor %}
         {% else %}
             {% for option in options %}
                 <div class="dropdown-item" data-value="{{ option }}" data-id="">{{ option }}</div>
@@ -40,7 +45,7 @@
             background-color: #FFF;
             color: #000;
             font-family: Inter;
-            font-size: 15px; /* Thay đổi từ 14px thành 16px */
+            font-size: 15px;
             font-style: normal;
             font-weight: 400;
             line-height: 24px;
@@ -51,7 +56,7 @@
             display: none;
             width: 100%;
             flex-direction: column;
-            align-items: flex-start; /* Thay đổi từ center thành flex-start để căn trái */
+            align-items: flex-start;
             gap: 5px;
             border-radius: 10px;
             border: 1px solid rgba(0, 60, 60, 0.20);
@@ -67,22 +72,19 @@
         .dropdown-item {
             display: flex;
             padding: 6px 8px 6px 32px;
-            justify-content: flex-start; /* Thay đổi từ center thành flex-start để căn trái */
+            justify-content: flex-start;
             align-items: center;
             gap: 10px;
             align-self: stretch;
-
             width: 100%;
             background-color: #FFF;
             color: #000;
             font-family: Inter;
-            font-size: 15px; /* Thay đổi từ 14px thành 16px */
+            font-size: 15px;
             font-style: normal;
             font-weight: 400;
             line-height: 24px;
             cursor: pointer;
-
-
         }
 
         .dropdown-menu.show {
