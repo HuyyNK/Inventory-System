@@ -9,69 +9,63 @@
     .searchbar {
         display: flex;
         width: 100%;
-        height: 40px; /* Chiều cao cố định */
-        padding: 0 10px; /* Thêm padding cho khung bao quanh */
-        justify-content: space-between; /* Giãn đều các phần tử */
-        align-items: center; /* Căn giữa các phần tử theo chiều dọc */
+        height: 40px;
+        padding: 0 10px; 
         border-radius: 10px;
         border: 1px solid rgba(0, 60, 60, 0.20);
         background: var(--White, #FFF);
         transition: border-color 0.3s ease;
-        color: #CCC;
         font-family: Inter, sans-serif;
         font-size: 16px;
         font-weight: 400;
-        box-sizing: border-box; /* Bao gồm padding và border trong kích thước tổng thể */
-    }
-
-    .searchbar input {
-        flex: 1; /* Chiếm không gian còn lại trong .searchbar */
-        height: calc(100% - 2px); /* Chiều cao giảm trừ border nếu cần */
-        background: transparent;
-        color: #000;
-        font-family: Inter, sans-serif;
-        font-size: 14px;
-        font-weight: 400;
-        padding: 10px; /* Padding trong input */
-        border: none; /* Xóa border mặc định */
-        outline: none; /* Xóa viền mặc định khi focus */
-        line-height: normal; /* Đặt lại line-height */
-        vertical-align: middle;
-        display: inline-block;
         box-sizing: border-box;
     }
 
+    .searchbar input {
+        flex: 1;
+        height: 100%;
+        background: transparent;
+        color: #000;
+        font-family: Inter, sans-serif;
+        font-size: 16px;
+        font-weight: 400;
+        padding: 0 10px; 
+        line-height: 40px;
+        border: none;
+        outline: none;
+        box-sizing: border-box;
+    }
+
+
     .searchbar svg {
+        width: 24px;
+        height: 24px;
         cursor: pointer;
-        margin-left: 10px; /* Khoảng cách giữa biểu tượng và input */
+        margin-left: 10px; 
+        align-self: center;
     }
 </style>
 
 <script>
     document.getElementById('search-bar').addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase(); // Lấy từ khóa tìm kiếm và chuyển thành chữ thường
-
-        // Lấy tất cả các bảng trong trang
-        const tables = document.querySelectorAll('table'); // Lấy tất cả các bảng trên trang
+        const searchTerm = this.value.toLowerCase();
+        const tables = document.querySelectorAll('table');
 
         tables.forEach(function(table) {
-            const rows = table.querySelectorAll('tbody tr'); // Lấy tất cả các hàng trong mỗi bảng
+            const rows = table.querySelectorAll('tbody tr');
 
             rows.forEach(function(row) {
-                const cells = row.querySelectorAll('td'); // Các cột trong mỗi hàng
-                let rowText = ''; // Biến để lưu trữ văn bản của hàng
+                const cells = row.querySelectorAll('td');
+                let rowText = '';
 
-                // Lấy toàn bộ văn bản trong các cột của hàng
                 cells.forEach(function(cell) {
-                    rowText += cell.textContent.toLowerCase() +
-                        ' '; // Thêm vào toàn bộ văn bản của hàng
+                    rowText += cell.textContent.toLowerCase() + ' ';
                 });
 
-                // Kiểm tra xem từ khóa có trong văn bản của hàng không
                 if (rowText.includes(searchTerm)) {
-                    row.style.display = ''; // Hiển thị hàng nếu tìm thấy từ khóa
+                    row.style.display = '';
                 } else {
-                    row.style.display = 'none'; // Ẩn hàng nếu không tìm thấy từ khóa
+                    row.style.display = 'none';
                 }
             });
         });

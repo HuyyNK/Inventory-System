@@ -132,13 +132,9 @@
 
   .logo img {
     width: auto;
-    /* Giữ tỉ lệ ảnh theo chiều rộng tự nhiên */
     height: 60px;
-    /* Chiều cao cố định, tùy chỉnh theo ý muốn */
     max-width: 100%;
-    /* Đảm bảo ảnh không vượt quá khung chứa */
     object-fit: contain;
-    /* Đảm bảo giữ nguyên tỷ lệ ảnh */
   }
 
   .right {
@@ -166,13 +162,9 @@
 
   .info img {
     width: auto;
-    /* Giữ tỉ lệ ảnh theo chiều rộng tự nhiên */
     height: 50px;
-    /* Chiều cao cố định, tùy chỉnh theo ý muốn */
     max-width: 100%;
-    /* Đảm bảo ảnh không vượt quá khung chứa */
     object-fit: contain;
-    /* Đảm bảo giữ nguyên tỷ lệ ảnh */
   }
 
   .name {
@@ -212,7 +204,6 @@
     justify-content: flex-start;
     align-items: flex-start;
     gap: 20px;
-    /* Đảm bảo gap được áp dụng */
     background-color: #fff;
     border: 1px solid #ddd;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
@@ -223,7 +214,6 @@
     z-index: 9999;
   }
 
-  /* Khi class 'show' được thêm vào, dropdown sẽ hiển thị */
   .dropdown-heading.show {
     display: flex;
   }
@@ -251,7 +241,7 @@
         try {
             const response = await fetch("/logout", {
                 method: "GET",
-                credentials: 'include' // Gửi cookie session
+                credentials: 'include'
             });
             if (response.ok) {
                 window.location.href = "/login";
@@ -268,10 +258,10 @@
         let url;
         switch (roleId) {
             case 1:
-                url = "/manager/profile"; // Placeholder
+                url = "/manager/profile";
                 break;
             case 2:
-                url = "/employee/profile"; // Placeholder
+                url = "/employee/profile";
                 break;
             default:
                 alert("Không thể xác định vai trò của bạn!");
@@ -284,10 +274,10 @@
         let url;
         switch (roleId) {
             case 1:
-                url = "/manager/change-password"; // Placeholder
+                url = "/manager/change-password";
                 break;
             case 2:
-                url = "/employee/change-password"; // Placeholder
+                url = "/employee/change-password";
                 break;
             default:
                 alert("Không thể xác định vai trò của bạn!");

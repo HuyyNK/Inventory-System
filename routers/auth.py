@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Form, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from procedures.auth import get_user_by_username
+from procedures.auth import get_user_by_username, get_current_user
+from models.user_sql import get_user_by_id_sql
 
 router = APIRouter(prefix="", tags=["auth"])
 templates = Jinja2Templates(directory="templates")
@@ -38,3 +39,14 @@ async def login(request: Request, username: str = Form(...), password: str = For
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login", status_code=303)
+
+@router.get("/auth/me", response_model=dict)
+async def get_current_user_details(user: dict = Depends(get_current_user)):
+    try:
+        # Lấy thông tin chi tiết từ database
+        user_details = get_user_by_id_sql(user["id"])
+        if not user_details:
+            raise HTTPException(status_code=404, detail="Không tìm thấy thông tin người dùng")
+        return JSONResponse(content=user_details)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching user details: {str(e)}")

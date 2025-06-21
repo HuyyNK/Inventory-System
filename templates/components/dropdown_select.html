@@ -6,8 +6,11 @@
         </svg>
     </div>
     <div class="dropdown-menu" id="{{ dropdown_id }}-menu">
-        <div class="dropdown-item" data-value="" data-id="">{{ selected_text }}</div>
-        {% if dropdown_id == 'supplier-dropdown' %}
+        {% if dropdown_id == 'role-dropdown' %}
+            {% for role in roles %}
+                <div class="dropdown-item" data-value="{{ role.name }}" data-id="{{ role.id }}">{{ role.name }}</div>
+            {% endfor %}
+        {% elif dropdown_id == 'supplier-dropdown' %}
             {% for option in suppliers %}
                 <div class="dropdown-item" data-value="{{ option.name }}" data-id="{{ option.id }}">{{ option.name }}</div>
             {% endfor %}

@@ -1,0 +1,42 @@
+<div class="complete-container">
+    <button type="button" id="save-complete-btn" class="button-complete">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6L9 17L4 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        {{ text | default('Lưu') }}
+    </button>
+</div>
+
+<style>
+    .complete-container {
+        width: 100px; /* Rộng hơn do text dài hơn */
+        display: flex;
+        align-items: center;
+    }
+
+    .button-complete {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+        padding: 10px;
+        gap: 10px;
+        border-radius: 10px;
+        border: none;
+        background-color: #01B3EF; /* Màu xanh lam giống save_button */
+        color: #FFF;
+        font-family: Inter, sans-serif;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: normal;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    .button-complete svg {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0; /* Ngăn SVG bị co lại */
+    }
+
+</style>
