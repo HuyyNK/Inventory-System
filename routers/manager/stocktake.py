@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.encoders import jsonable_encoder
 from procedures.auth import get_current_user
-from procedures.manager.stocktake import get_stocktakes_list, get_inventory_list, create_new_stocktake
+from procedures.manager.stocktake import get_stocktakes_list, get_inventory_list, create_new_stocktake, get_stocktake_details, update_stocktake_details
 from utils.templates import templates
+from datetime import datetime
 
 router = APIRouter(prefix="/manager/stocktake", tags=["manager_stocktake"])
 
@@ -26,10 +28,12 @@ async def list_stocktakes_api(request: Request, user: dict = Depends(get_current
 async def add_stocktake_page(request: Request, user: dict = Depends(get_current_user)):
     if user.get("role_id") not in [1, 2]:
         raise HTTPException(status_code=403, detail="Không có quyền truy cập")
+    # Lấy ngày hiện tại và định dạng thành YYYY-MM-DD
+    today = datetime.now().strftime("%Y-%m-%d")  # Sẽ là "2025-06-21"
     return templates.TemplateResponse("manager/stocktake/add.html", {
         "request": request,
         "user": user,
-        "today": "2025-05-28"
+        "today": today  # Truyền ngày hiện tại vào template
     })
 
 @router.get("/inventory", response_model=list[dict])
@@ -71,8 +75,14 @@ async def add_stocktake(request: Request, user: dict = Depends(get_current_user)
             raise HTTPException(status_code=400, detail="inventory_id phải là số nguyên")
         if not isinstance(item.get("system_quantity"), int):
             raise HTTPException(status_code=400, detail="system_quantity phải là số nguyên")
-        if not isinstance(item.get("actual_quantity"), int):
-            raise HTTPException(status_code=400, detail="actual_quantity phải là số nguyên")
+        if not isinstance(item.get("actual_quantity"), (int, type(None))):
+            raise HTTPException(status_code=400, detail="actual_quantity phải là số nguyên hoặc null")
+        if item.get("actual_quantity") is not None and item.get("actual_quantity") < 0:
+            raise HTTPException(status_code=400, detail="Số lượng thực tế không được âm")
+        if item.get("actual_quantity") is not None and item.get("variance") != 0 and not item.get("variance_type"):
+            raise HTTPException(status_code=400, detail="Vui lòng chọn loại hao hụt khi có chênh lệch")
+        if item.get("actual_quantity") is not None and item.get("variance") != 0 and not item.get("variance_reason"):
+            raise HTTPException(status_code=400, detail="Vui lòng nhập lý do chênh lệch")
         if not isinstance(item.get("variance_value"), (int, float)):
             raise HTTPException(status_code=400, detail="variance_value phải là số")
 
@@ -83,3 +93,67 @@ async def add_stocktake(request: Request, user: dict = Depends(get_current_user)
         raise HTTPException(status_code=400, detail=f"Dữ liệu không hợp lệ: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding stocktake: {str(e)}")
+
+@router.get("/view/{stocktake_id}", response_class=HTMLResponse, include_in_schema=False)
+async def view_stocktake_page(request: Request, stocktake_id: int, user: dict = Depends(get_current_user)):
+    if user.get("role_id") not in [1, 2]:
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập")
+    try:
+        stocktake = get_stocktake_details(stocktake_id)
+        if not stocktake:
+            raise HTTPException(status_code=404, detail="Phiên kiểm kê không tồn tại")
+        can_edit = (user.get("role_id") == 1 or user.get("id") == stocktake.get("created_by")) and stocktake.get("status") == "Đang kiểm kê"
+        stocktake = jsonable_encoder(stocktake)
+        return templates.TemplateResponse(
+            "manager/stocktake/view.html",
+            {
+                "request": request,
+                "user": user,
+                "stocktake": stocktake,
+                "can_edit": can_edit,
+                "today": datetime.now().strftime("%Y-%m-%d")
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching stocktake: {str(e)}")
+
+@router.post("/view/{stocktake_id}")
+async def update_stocktake(request: Request, stocktake_id: int, user: dict = Depends(get_current_user)):
+    if user.get("role_id") not in [1, 2]:
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập")
+    try:
+        stocktake = get_stocktake_details(stocktake_id)
+        if not stocktake:
+            raise HTTPException(status_code=404, detail="Phiên kiểm kê không tồn tại")
+        if (user.get("role_id") != 1 and user.get("id") != stocktake.get("created_by")) or stocktake.get("status") == "Đã kiểm kê":
+            raise HTTPException(status_code=403, detail="Không có quyền chỉnh sửa")
+
+        data = await request.json()
+        print("Received data:", data)  # Thêm log để kiểm tra dữ liệu nhận được
+        date = data.get("date", stocktake.get("date"))
+        status = data.get("status", "Đang kiểm kê")
+        items = data.get("items")
+
+        if not isinstance(items, list):
+            raise HTTPException(status_code=400, detail="Danh sách chi tiết kiểm kê phải là một mảng")
+        if status not in ["Đang kiểm kê", "Đã kiểm kê"]:
+            raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ")
+
+        for item in items:
+            if not isinstance(item.get("inventory_id"), int):
+                raise HTTPException(status_code=400, detail="inventory_id phải là số nguyên")
+            if not isinstance(item.get("actual_quantity"), (int, type(None))):
+                raise HTTPException(status_code=400, detail="actual_quantity phải là số nguyên hoặc null")
+            if item.get("actual_quantity") is not None and item.get("actual_quantity") < 0:
+                raise HTTPException(status_code=400, detail="Số lượng thực tế không được âm")
+            if item.get("actual_quantity") is not None and item.get("variance") != 0 and not item.get("variance_type"):
+                raise HTTPException(status_code=400, detail="Vui lòng chọn loại hao hụt khi có chênh lệch")
+            if item.get("actual_quantity") is not None and item.get("variance") != 0 and not item.get("variance_reason"):
+                raise HTTPException(status_code=400, detail="Vui lòng nhập lý do chênh lệch")
+
+        result = update_stocktake_details(stocktake_id, date, user.get("id"), status, items)
+        return JSONResponse(content={"message": "Cập nhật phiếu kiểm kê thành công!", "id": stocktake_id})
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating stocktake: {str(e)}")

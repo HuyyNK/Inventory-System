@@ -101,7 +101,7 @@
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${stt}</td>
-                        <td>${inbound.id || ''}</td>
+                        <td>${inbound.id ? `INB-${String(inbound.id).padStart(3, '0')}` : ''}</td>
                         <td>${(inbound.total_amount || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }) || '0 VND'}</td>
                         <td>${inbound.supplier_name || ''}</td>
                         <td>${inbound.date ? new Date(inbound.date).toLocaleDateString('vi-VN') : ''}</td>

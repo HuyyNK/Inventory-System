@@ -103,7 +103,7 @@
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${stt}</td>
-                        <td>${outbound.id || ''}</td>
+                        <td>${outbound.id ? `OUT-${String(outbound.id).padStart(3, '0')}` : ''}</td>
                         <td>${outbound.customer_name || 'Không xác định'}</td>
                         <td>${(outbound.total_amount || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }) || '0 VND'}</td>
                         <td>${outbound.created_by_name || 'Không xác định'}</td>

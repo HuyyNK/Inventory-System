@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thêm phiếu kiểm kê</title>
+    <title>{{ "Quản lý / Kiểm kê / Chỉnh sửa phiên kiểm kê" if can_edit else "Quản lý / Kiểm kê / Xem phiên kiểm kê" }}</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
 
+        /* CSS giữ nguyên từ add.html */
         *, *::before, *::after {
             margin: 0;
             padding: 0;
@@ -54,6 +55,7 @@
             min-height: 48px;
         }
 
+        /* CSS cho input trong bảng, dựa trên input.html */
         #stocktake-table td input.actual-quantity,
         #stocktake-table td input.variance-reason {
             width: 100%;
@@ -76,6 +78,7 @@
             border-color: var(--info-color, #6DCFFB);
         }
 
+        /* CSS cho custom dropdown trong bảng, dựa trên dropdown_select.html */
         #stocktake-table td .dropdown-select-container {
             display: inline-flex;
             align-items: flex-start;
@@ -151,7 +154,7 @@
     </style>
 </head>
 <body>
-    <div class="stocktake-add">
+    <div class="stocktake-view">
         <div class="stocktake-heading">
             {% include 'components/heading.html' %}
         </div>
@@ -160,23 +163,24 @@
                 {% include 'components/sidebar_manager.html' %}
             </div>
             <div class="body-right">
-                Quản lý / Kiểm kê / Tạo phiên kiểm kê
-                <h1>Tạo phiên kiểm kê:</h1>
+                {{ "Quản lý / Kiểm kê / Chỉnh sửa phiên kiểm kê" if can_edit else "Quản lý / Kiểm kê / Xem phiên kiểm kê" }}
+                <h1>Tạo hoặc chỉnh sửa phiên kiểm kê:</h1>
                 <div id="message" style="display: none;"></div>
                 <div class="stocktake-fields">
                     <div class="stocktake-field">
                         Ngày kiểm kê
                         {% set type = 'date' %}
                         {% set name = 'stocktake_date' %}
-                        {% set value = today %}
+                        {% set value = stocktake.date|default(today, true)|string %}
                         {% set required = True %}
+                        {% set readonly = not can_edit %}
                         {% include 'components/input.html' %}
                     </div>
                     <div class="stocktake-field">
                         Người kiểm kê
                         {% set type = 'text' %}
                         {% set name = 'created_by_name' %}
-                        {% set value = user.full_name if user else '' %}
+                        {% set value = stocktake.created_by_name if stocktake.created_by_name else (user.full_name if user else '') %}
                         {% set readonly = True %}
                         {% include 'components/input.html' %}
                     </div>
@@ -184,7 +188,7 @@
                         Trạng thái
                         {% set type = 'text' %}
                         {% set name = 'status' %}
-                        {% set value = 'Đang kiểm kê' %}
+                        {% set value = stocktake.status if stocktake.status else 'Đang kiểm kê' %}
                         {% set readonly = True %}
                         {% include 'components/input.html' %}
                     </div>
@@ -218,8 +222,12 @@
                     <a style="text-decoration: none" href="/manager/stocktake/list">
                         {% include 'components/exit_button.html' %}
                     </a>
-                    {% include 'components/draft_button.html' %}
-                    {% include 'components/complete_button.html' %}
+                    {% if can_edit %}
+                        {% include 'components/draft_button.html' %}
+                        {% include 'components/complete_button.html' %}
+                    {% else %}
+                        <button id="export-report-btn">Xuất báo cáo</button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -231,28 +239,12 @@
             const messageDiv = document.getElementById('message');
             const saveDraftBtn = document.getElementById('save-draft-btn');
             const saveCompleteBtn = document.getElementById('save-complete-btn');
-            let currentUser = null;
+            const exportReportBtn = document.getElementById('export-report-btn');
+            const canEdit = {{ can_edit|tojson }};
+            let currentUser = {{ user|tojson }};
             let inventoryItems = [];
-
-            // Lấy thông tin người dùng hiện tại
-            async function fetchCurrentUser() {
-                try {
-                    const response = await fetch('/auth/me', {
-                        credentials: 'include',
-                        headers: { 'Accept': 'application/json' }
-                    });
-                    if (!response.ok) throw new Error('Không thể lấy thông tin người dùng');
-                    const user = await response.json();
-                    return user;
-                } catch (error) {
-                    console.error('Fetch user error:', error);
-                    messageDiv.className = 'error';
-                    messageDiv.textContent = 'Không thể xác định người dùng. Vui lòng đăng nhập lại.';
-                    messageDiv.style.display = 'block';
-                    setTimeout(() => window.location.href = '/login', 2000);
-                    return null;
-                }
-            }
+            let stocktakeId = {{ stocktake.id if stocktake else 'null' }};
+            let existingDetails = {{ stocktake.details|tojson if stocktake.details else '[]' }};
 
             // Lấy danh sách tồn kho
             async function fetchInventory() {
@@ -296,29 +288,64 @@
                 return Object.values(grouped);
             }
 
-            // Hiển thị danh sách tồn kho
-            function renderInventory(groupedItems) {
+            // Gộp dữ liệu hiện có với danh sách tồn kho
+            function mergeExistingDetails(inventory, existing) {
+                const merged = {};
+                existing.forEach(detail => {
+                    merged[detail.inventory_id] = detail;
+                });
+                inventory.forEach(item => {
+                    item.batches.forEach(batch => {
+                        if (!merged[batch.inventory_id]) {
+                            merged[batch.inventory_id] = {
+                                inventory_id: batch.inventory_id,
+                                product_id: item.product_id,
+                                name: item.name,
+                                sku: item.sku,
+                                batch_number: batch.batch_number,
+                                expiry_date: batch.expiry_date,
+                                system_quantity: batch.current_quantity,
+                                actual_quantity: null,
+                                variance: 0,
+                                variance_type: '',
+                                variance_reason: '',
+                                variance_value: 0
+                            };
+                        }
+                    });
+                });
+                return Object.values(merged);
+            }
+
+            // Hiển thị danh sách tồn kho với dữ liệu hiện có, sắp xếp theo SKU
+            function renderInventory(mergedItems) {
                 stocktakeItems.innerHTML = '';
-                groupedItems.forEach(product => {
-                    product.batches.forEach((batch, batchIndex) => {
-                        const row = document.createElement('tr');
-                        const isFirstBatch = batchIndex === 0;
-                        const rowIndex = stocktakeItems.children.length;
-                        const inventoryId = parseInt(batch.inventory_id, 10);
-                        row.innerHTML = `
-                            <td>${isFirstBatch ? product.name : ''}</td>
-                            <td>${isFirstBatch ? product.sku : ''}</td>
-                            <td>${batch.batch_number}</td>
-                            <td>${batch.expiry_date ? new Date(batch.expiry_date).toLocaleDateString('vi-VN') : ''}</td>
-                            <td>${batch.current_quantity}</td>
-                            <td><input type="number" class="actual-quantity" min="0" data-inventory-id="${inventoryId}" data-cost-price="${product.cost_price}"></td>
-                            <td class="variance">0</td>
-                            <td>
+                // Sắp xếp theo SKU tăng dần
+                mergedItems.sort((a, b) => a.sku.localeCompare(b.sku));
+                mergedItems.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    const isFirstBatch = index === 0 || mergedItems[index - 1].product_id !== item.product_id;
+                    row.innerHTML = `
+                        <td>${isFirstBatch ? item.name : ''}</td>
+                        <td>${isFirstBatch ? item.sku : ''}</td>
+                        <td>${item.batch_number}</td>
+                        <td>${item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('vi-VN') : ''}</td>
+                        <td>${item.system_quantity}</td>
+                        <td>
+                            {% if can_edit %}
+                                <input type="number" class="actual-quantity" value="${item.actual_quantity !== null ? item.actual_quantity : ''}" min="0" data-inventory-id="${item.inventory_id}" data-cost-price="${item.cost_price}">
+                            {% else %}
+                                ${item.actual_quantity !== null ? item.actual_quantity : ''}
+                            {% endif %}
+                        </td>
+                        <td class="variance">${item.variance}</td>
+                        <td>
+                            {% if can_edit %}
                                 <div class="dropdown-select-container">
-                                    <div class="dropdown-toggle" id="variance-type-${rowIndex}">
-                                        <span class="selected-option">Chọn loại</span>
+                                    <div class="dropdown-toggle" id="variance-type-${index}">
+                                        <span class="selected-option">${item.variance_type || 'Chọn loại'}</span>
                                     </div>
-                                    <div class="dropdown-menu" id="dropdown-menu-${rowIndex}">
+                                    <div class="dropdown-menu" id="dropdown-menu-${index}">
                                         <div class="dropdown-item" data-value="">Chọn loại</div>
                                         <div class="dropdown-item" data-value="Hư hỏng">Hư hỏng</div>
                                         <div class="dropdown-item" data-value="Hết hạn">Hết hạn</div>
@@ -327,160 +354,163 @@
                                         <div class="dropdown-item" data-value="Dư thừa">Dư thừa</div>
                                         <div class="dropdown-item" data-value="Khác">Khác</div>
                                     </div>
-                                    <input type="hidden" class="variance-type" value="">
+                                    <input type="hidden" class="variance-type" value="${item.variance_type || ''}">
                                 </div>
-                            </td>
-                            <td><input type="text" class="variance-reason" placeholder="Nhập lý do"></td>
-                            <td class="variance-value">0</td>
-                        `;
-                        stocktakeItems.appendChild(row);
+                            {% else %}
+                                ${item.variance_type || ''}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if can_edit %}
+                                <input type="text" class="variance-reason" value="${item.variance_reason || ''}" placeholder="Nhập lý do">
+                            {% else %}
+                                ${item.variance_reason || ''}
+                            {% endif %}
+                        </td>
+                        <td class="variance-value">${item.variance_value.toLocaleString('vi-VN')}</td>
+                    `;
+                    stocktakeItems.appendChild(row);
 
+                    if (canEdit) {
                         const actualQtyInput = row.querySelector('.actual-quantity');
+                        const varianceTypeToggle = row.querySelector('.dropdown-toggle');
+                        const varianceMenu = row.querySelector('.dropdown-menu');
+                        const varianceItems = row.querySelectorAll('.dropdown-item');
+                        const varianceTypeInput = row.querySelector('.variance-type');
+                        const varianceReasonInput = row.querySelector('.variance-reason');
+                        const varianceCell = row.querySelector('.variance');
+                        const varianceValueCell = row.querySelector('.variance-value');
+
                         actualQtyInput.addEventListener('input', () => {
-                            const systemQty = parseInt(batch.current_quantity);
+                            const systemQty = parseInt(item.system_quantity);
                             const actualQty = parseInt(actualQtyInput.value) || 0;
                             const variance = actualQty - systemQty;
-                            const costPrice = parseFloat(product.cost_price);
+                            const costPrice = parseFloat(item.cost_price);
                             const varianceValue = variance * costPrice;
 
-                            row.querySelector('.variance').textContent = variance;
-                            row.querySelector('.variance-value').textContent = varianceValue.toLocaleString('vi-VN');
+                            varianceCell.textContent = variance;
+                            varianceValueCell.textContent = varianceValue.toLocaleString('vi-VN');
                         });
 
-                        const dropdownToggle = row.querySelector(`#variance-type-${rowIndex}`);
-                        const dropdownMenu = row.querySelector(`#dropdown-menu-${rowIndex}`);
-                        const dropdownItems = row.querySelectorAll(`#dropdown-menu-${rowIndex} .dropdown-item`);
-                        const hiddenInput = row.querySelector('.variance-type');
-
-                        dropdownToggle.addEventListener('click', (e) => {
+                        varianceTypeToggle.addEventListener('click', (e) => {
                             e.stopPropagation();
-                            dropdownMenu.classList.toggle('show');
+                            varianceMenu.classList.toggle('show');
                         });
 
-                        dropdownItems.forEach(item => {
+                        varianceItems.forEach(item => {
                             item.addEventListener('click', (e) => {
                                 e.stopPropagation();
                                 const value = item.getAttribute('data-value');
                                 const text = item.textContent;
-                                dropdownToggle.querySelector('.selected-option').textContent = text;
-                                hiddenInput.value = value;
-                                dropdownMenu.classList.remove('show');
+                                varianceTypeToggle.querySelector('.selected-option').textContent = text;
+                                varianceTypeInput.value = value;
+                                varianceMenu.classList.remove('show');
                             });
                         });
 
                         document.addEventListener('click', (e) => {
-                            if (!dropdownToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
-                                dropdownMenu.classList.remove('show');
+                            if (!varianceTypeToggle.contains(e.target) && !varianceMenu.contains(e.target)) {
+                                varianceMenu.classList.remove('show');
                             }
-                        });
-                    });
-                });
-            }
-
-            // Lưu phiếu kiểm kê
-            async function saveStocktake(status) {
-                const date = document.querySelector('input[name="stocktake_date"]').value;
-                const items = [];
-                let hasError = false;
-                let errorMessage = '';
-
-                document.querySelectorAll('#stocktake-items tr').forEach(row => {
-                    const inventoryId = parseInt(row.querySelector('.actual-quantity').dataset.inventoryId, 10);
-                    const costPrice = parseFloat(row.querySelector('.actual-quantity').dataset.costPrice);
-                    const systemQty = parseInt(row.cells[4].textContent);
-                    const actualQtyInput = row.querySelector('.actual-quantity');
-                    const actualQty = actualQtyInput.value ? parseInt(actualQtyInput.value) : null;
-                    const variance = actualQty !== null ? actualQty - systemQty : 0;
-                    const varianceType = row.querySelector('.variance-type').value;
-                    const varianceReason = row.querySelector('.variance-reason').value;
-                    const varianceValue = actualQty !== null ? variance * costPrice : 0;
-
-                    // Kiểm tra dữ liệu chỉ cho các sản phẩm được nhập
-                    if (actualQty !== null) {
-                        if (actualQty < 0) {
-                            hasError = true;
-                            errorMessage = 'Số lượng thực tế không được âm.';
-                            return;
-                        }
-                        if (variance !== 0 && !varianceType) {
-                            hasError = true;
-                            errorMessage = 'Vui lòng chọn loại hao hụt khi có chênh lệch.';
-                            return;
-                        }
-                        if (variance !== 0 && !varianceReason) {
-                            hasError = true;
-                            errorMessage = 'Vui lòng nhập lý do chênh lệch.';
-                            return;
-                        }
-                        items.push({
-                            inventory_id: inventoryId,
-                            system_quantity: systemQty,
-                            actual_quantity: actualQty,
-                            variance: variance,
-                            variance_type: varianceType || null,
-                            variance_reason: varianceReason || null,
-                            variance_value: varianceValue,
-                            cost_price: costPrice
                         });
                     }
                 });
-
-                if (hasError) {
-                    messageDiv.className = 'error';
-                    messageDiv.textContent = errorMessage;
-                    messageDiv.style.display = 'block';
-                    return;
-                }
-
-                // Kiểm tra nếu không có sản phẩm nào được nhập
-                if (items.length === 0) {
-                    messageDiv.className = 'error';
-                    messageDiv.textContent = 'Vui lòng nhập ít nhất một sản phẩm để lưu phiếu kiểm kê.';
-                    messageDiv.style.display = 'block';
-                    return;
-                }
-
-                try {
-                    const response = await fetch('/manager/stocktake/add', {
-                        method: 'POST',
-                        credentials: 'include',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            date: date,
-                            created_by: currentUser.id,
-                            status: status,
-                            items: items
-                        })
-                    });
-
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.detail || 'Lỗi khi lưu phiếu kiểm kê');
-
-                    messageDiv.className = 'success';
-                    messageDiv.textContent = status === 'Đang kiểm kê' ? 'Lưu thành công!' : 'Hoàn tất thành công!';
-                    messageDiv.style.display = 'block';
-                    setTimeout(() => window.location.href = '/manager/stocktake/list', 1000);
-                } catch (error) {
-                    messageDiv.className = 'error';
-                    messageDiv.textContent = `Lỗi: ${error.message}`;
-                    messageDiv.style.display = 'block';
-                }
             }
 
-            // Tải dữ liệu ban đầu
-            currentUser = await fetchCurrentUser();
-            if (!currentUser) return;
+            // Lưu hoặc cập nhật phiếu kiểm kê
+            async function saveStocktake(status) {
+                    const date = document.querySelector('input[name="stocktake_date"]').value;
+                    const items = [];
+                    let hasError = false;
+                    let errorMessage = '';
 
+                    document.querySelectorAll('#stocktake-items tr').forEach(row => {
+                        const inventoryId = parseInt(row.querySelector('.actual-quantity')?.dataset.inventoryId, 10);
+                        const costPrice = parseFloat(row.querySelector('.actual-quantity')?.dataset.costPrice);
+                        const systemQty = parseInt(row.cells[4].textContent);
+                        const actualQtyInput = row.querySelector('.actual-quantity');
+                        const actualQty = actualQtyInput ? (actualQtyInput.value !== '' ? parseInt(actualQtyInput.value) : null) : null;
+                        const variance = actualQty !== null ? actualQty - systemQty : 0;
+                        const varianceType = row.querySelector('.variance-type')?.value || '';
+                        const varianceReason = row.querySelector('.variance-reason')?.value || '';
+
+                        if (actualQty !== null) {
+                            if (status === 'Đã kiểm kê' && actualQty < 0) {
+                                hasError = true;
+                                errorMessage = 'Số lượng thực tế không được âm.';
+                                return;
+                            }
+                            if (variance !== 0 && !varianceType) {
+                                hasError = true;
+                                errorMessage = 'Vui lòng chọn loại hao hụt khi có chênh lệch.';
+                                return;
+                            }
+                            if (variance !== 0 && !varianceReason) {
+                                hasError = true;
+                                errorMessage = 'Vui lòng nhập lý do chênh lệch.';
+                                return;
+                            }
+                        }
+
+                        if (actualQty !== null || existingDetails.some(d => d.inventory_id === inventoryId)) {
+                            items.push({
+                                inventory_id: inventoryId,
+                                system_quantity: systemQty,
+                                actual_quantity: actualQty,
+                                variance: variance,
+                                variance_type: varianceType || null,
+                                variance_reason: varianceReason || null,
+                                variance_value: variance * costPrice
+                            });
+                        }
+                    });
+
+                    if (hasError) {
+                        messageDiv.className = 'error';
+                        messageDiv.textContent = errorMessage;
+                        messageDiv.style.display = 'block';
+                        return;
+                    }
+
+                    console.log('Data to send:', { date, status, items }); // Thêm log để kiểm tra dữ liệu
+                    try {
+                        const response = await fetch(`/manager/stocktake/view/${stocktakeId}`, {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify({ date, status, items })
+                        });
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.detail || 'Lỗi khi lưu phiếu kiểm kê');
+
+                        messageDiv.className = 'success';
+                        messageDiv.textContent = status === 'Đang kiểm kê' ? 'Lưu thành công!' : 'Hoàn tất thành công!';
+                        messageDiv.style.display = 'block';
+                        setTimeout(() => window.location.href = '/manager/stocktake/list', 1000);
+                    } catch (error) {
+                        messageDiv.className = 'error';
+                        messageDiv.textContent = `Lỗi: ${error.message}`;
+                        messageDiv.style.display = 'block';
+                    }
+                }
+
+            // Tải dữ liệu ban đầu
             inventoryItems = await fetchInventory();
             const groupedItems = groupInventoryByProduct(inventoryItems);
-            renderInventory(groupedItems);
+            const mergedItems = mergeExistingDetails(groupedItems, existingDetails);
+            renderInventory(mergedItems);
 
             // Sự kiện cho các nút
-            saveDraftBtn.addEventListener('click', () => saveStocktake('Đang kiểm kê'));
-            saveCompleteBtn.addEventListener('click', () => saveStocktake('Đã kiểm kê'));
+            if (canEdit) {
+                saveDraftBtn.addEventListener('click', () => saveStocktake('Đang kiểm kê'));
+                saveCompleteBtn.addEventListener('click', () => saveStocktake('Đã kiểm kê'));
+            } else {
+                exportReportBtn.addEventListener('click', () => {
+                    messageDiv.textContent = 'Tính năng xuất báo cáo đang được phát triển.';
+                    messageDiv.className = 'error';
+                    messageDiv.style.display = 'block';
+                });
+            }
         });
     </script>
 </body>

@@ -278,12 +278,13 @@
                 const end = start + rowsPerPage;
                 stocktakes.slice(start, end).forEach((stocktake, index) => {
                     const stt = start + index + 1;
+                    const stocktakeId = stocktake.id ? `STK-${String(stocktake.id).padStart(3, '0')}` : '';
                     const row = document.createElement('tr');
                     const canEdit = stocktake.status === 'Đang kiểm kê' && 
                                   (currentUser.role_id === 1 || currentUser.id === stocktake.created_by);
                     row.innerHTML = `
                         <td>${stt}</td>
-                        <td>${stocktake.id || ''}</td>
+                        <td>${stocktakeId}</td>
                         <td>${stocktake.date ? new Date(stocktake.date).toLocaleDateString('vi-VN') : ''}</td>
                         <td>${stocktake.created_by_name || 'Không xác định'}</td>
                         <td>${stocktake.status || 'Không xác định'}</td>
