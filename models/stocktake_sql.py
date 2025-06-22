@@ -1,6 +1,8 @@
 import json
 from database import get_db_connection, redis_client
 from datetime import date, datetime
+import time
+import mysql.connector
 
 def _convert_datetime(obj):
     if isinstance(obj, (datetime, date)):
@@ -63,12 +65,10 @@ def get_inventory():
         cursor.execute(query)
         inventory = cursor.fetchall()
         for item in inventory:
-            # Xử lý expiry_date: chỉ gọi isoformat() nếu là datetime hoặc date
             if item["expiry_date"] is not None:
                 if isinstance(item["expiry_date"], (datetime, date)):
                     item["expiry_date"] = item["expiry_date"].isoformat()
                 else:
-                    # Nếu là chuỗi hoặc định dạng khác, giữ nguyên hoặc chuyển đổi nếu cần
                     item["expiry_date"] = str(item["expiry_date"]) if item["expiry_date"] else None
             else:
                 item["expiry_date"] = None
@@ -92,12 +92,10 @@ def get_product_id_from_inventory(inventory_id):
         query = "SELECT product_id FROM inventory WHERE id = %s"
         cursor.execute(query, (inventory_id,))
         result = cursor.fetchone()
-        print(f"get_product_id_from_inventory({inventory_id}) returned: {result}")
         product_id = result["product_id"] if result else None
         redis_client.setex(cache_key, 300, json.dumps(product_id) if product_id else "null")
         return product_id
     except Exception as e:
-        print(f"Error in get_product_id_from_inventory: {e}")
         raise
     finally:
         cursor.close()
@@ -105,69 +103,93 @@ def get_product_id_from_inventory(inventory_id):
 
 def create_stocktake(date, created_by, status, items):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("START TRANSACTION")
+    cursor = conn.cursor(dictionary=True)
+    max_retries = 3
+    retry_delay = 1
 
-        # Thêm bản ghi vào stocktake
-        query = """
-            INSERT INTO stocktake (date, created_by, status)
-            VALUES (%s, %s, %s)
-        """
-        cursor.execute(query, (date, created_by, status))
-        stocktake_id = cursor.lastrowid
+    for attempt in range(max_retries):
+        try:
+            cursor.execute("START TRANSACTION")
 
-        # Thêm chi tiết vào stocktake_detail
-        for item in items:
-            if item["actual_quantity"] is None:
-                continue
-            product_id = get_product_id_from_inventory(item["inventory_id"])
-            if product_id is None:
-                raise ValueError(f"Không tìm thấy product_id cho inventory_id {item['inventory_id']}")
-
-            insert_detail_query = """
-                INSERT INTO stocktake_detail (stocktake_id, inventory_id, product_id, system_quantity, 
-                    actual_quantity, variance_type, variance_reason, variance_value)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            query = """
+                INSERT INTO stocktake (date, created_by, status)
+                VALUES (%s, %s, %s)
             """
-            # Sử dụng variance_value từ frontend nếu có, nếu không thì tính lại
-            variance_value = item.get("variance_value", (item["actual_quantity"] - item["system_quantity"]) * item.get("cost_price", 0))
-            cursor.execute(insert_detail_query, (
-                stocktake_id,
-                item["inventory_id"],
-                product_id,
-                item["system_quantity"],
-                item["actual_quantity"],
-                item["variance_type"] or None,
-                item["variance_reason"] or None,
-                variance_value
-            ))
+            cursor.execute(query, (date, created_by, status))
+            stocktake_id = cursor.lastrowid
 
-            # Nếu trạng thái là "Đã kiểm kê", cập nhật tồn kho
-            if status == "Đã kiểm kê":
-                update_inventory_query = """
-                    UPDATE inventory
-                    SET current_quantity = %s, last_updated = %s
-                    WHERE id = %s
+            if items and any(item.get("actual_quantity") is not None for item in items):
+                inventory_ids = [item["inventory_id"] for item in items if item.get("actual_quantity") is not None]
+                if inventory_ids:
+                    lock_query = "SELECT id, current_quantity FROM inventory WHERE id IN (" + ",".join(["%s"] * len(inventory_ids)) + ") FOR UPDATE"
+                    cursor.execute(lock_query, tuple(inventory_ids))
+                    cursor.fetchall()
+
+            for item in items:
+                if item["actual_quantity"] is None:
+                    continue
+                product_id = get_product_id_from_inventory(item["inventory_id"])
+                if product_id is None:
+                    raise ValueError(f"Không tìm thấy product_id cho inventory_id {item['inventory_id']}")
+
+                variance_value = item.get("variance_value", (item["actual_quantity"] - item["system_quantity"]) * item.get("cost_price", 0))
+                if item["actual_quantity"] != item["system_quantity"] and not item.get("variance_type"):
+                    raise ValueError(f"Thiếu loại hao hụt cho inventory_id {item['inventory_id']}")
+                if item["actual_quantity"] != item["system_quantity"] and not item.get("variance_reason"):
+                    raise ValueError(f"Thiếu lý do chênh lệch cho inventory_id {item['inventory_id']}")
+
+                insert_detail_query = """
+                    INSERT INTO stocktake_detail (stocktake_id, inventory_id, product_id, system_quantity, 
+                        actual_quantity, variance_type, variance_reason, variance_value)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
-                cursor.execute(update_inventory_query, (
+                cursor.execute(insert_detail_query, (
+                    stocktake_id,
+                    item["inventory_id"],
+                    product_id,
+                    item["system_quantity"],
                     item["actual_quantity"],
-                    datetime.now(),
-                    item["inventory_id"]
+                    item["variance_type"] or None,
+                    item["variance_reason"] or None,
+                    variance_value
                 ))
 
-        conn.commit()
-        # Xóa cache liên quan sau khi tạo mới
-        redis_client.delete("cache:stocktakes")
-        redis_client.delete("cache:inventory")
-        redis_client.delete(f"cache:stocktake:{stocktake_id}")
-        return {"id": stocktake_id}
-    except Exception as e:
-        conn.rollback()
-        raise
-    finally:
-        cursor.close()
-        conn.close()
+                if status == "Đã kiểm kê":
+                    if item["actual_quantity"] < 0:
+                        raise ValueError("Số lượng thực tế không hợp lệ")
+                    update_inventory_query = """
+                        UPDATE inventory
+                        SET current_quantity = %s, last_updated = %s
+                        WHERE id = %s
+                    """
+                    cursor.execute(update_inventory_query, (
+                        item["actual_quantity"],
+                        datetime.now(),
+                        item["inventory_id"]
+                    ))
+
+            conn.commit()
+            redis_client.delete("cache:stocktakes")
+            redis_client.delete("cache:inventory")
+            redis_client.delete(f"cache:stocktake:{stocktake_id}")
+            redis_client.delete("cache:kpi:*")
+            redis_client.delete("cache:charts:*")
+            redis_client.delete("cache:warnings:*")
+            redis_client.delete("cache:activities")
+            return {"id": stocktake_id}
+
+        except mysql.connector.errors.DatabaseError as db_error:
+            conn.rollback()
+            if attempt < max_retries - 1 and "deadlock" in str(db_error).lower():
+                time.sleep(retry_delay * (attempt + 1))
+                continue
+            raise Exception("Xung đột dữ liệu, vui lòng thử lại sau.")
+        except Exception as e:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
 
 def get_stocktake(stocktake_id):
     cache_key = f"cache:stocktake:{stocktake_id}"
@@ -218,103 +240,126 @@ def get_stocktake(stocktake_id):
 def update_stocktake(stocktake_id, date, created_by, status, items):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute("START TRANSACTION")
+    max_retries = 3
+    retry_delay = 1
 
-        # Cập nhật bản ghi stocktake
-        update_stocktake_query = """
-            UPDATE stocktake 
-            SET date = %s, status = %s
-            WHERE id = %s
-        """
-        cursor.execute(update_stocktake_query, (date, status, stocktake_id))
+    for attempt in range(max_retries):
+        try:
+            cursor.execute("START TRANSACTION")
 
-        # Lấy danh sách chi tiết hiện có để so sánh
-        existing_details_query = "SELECT inventory_id FROM stocktake_detail WHERE stocktake_id = %s"
-        cursor.execute(existing_details_query, (stocktake_id,))
-        existing_inventory_ids = {row["inventory_id"] for row in cursor.fetchall()}
+            update_stocktake_query = """
+                UPDATE stocktake 
+                SET date = %s, status = %s
+                WHERE id = %s
+            """
+            cursor.execute(update_stocktake_query, (date, status, stocktake_id))
 
-        # Chỉ xóa các chi tiết không còn trong items
-        for inventory_id in existing_inventory_ids:
-            if not any(item.get("inventory_id") == inventory_id for item in items if item.get("actual_quantity") is not None):
-                delete_detail_query = "DELETE FROM stocktake_detail WHERE stocktake_id = %s AND inventory_id = %s"
-                cursor.execute(delete_detail_query, (stocktake_id, inventory_id))
+            inventory_ids = [item["inventory_id"] for item in items if item.get("actual_quantity") is not None]
+            if inventory_ids:
+                lock_query = "SELECT id, current_quantity FROM inventory WHERE id IN (" + ",".join(["%s"] * len(inventory_ids)) + ") FOR UPDATE"
+                cursor.execute(lock_query, tuple(inventory_ids))
+                cursor.fetchall()
 
-        # Thêm hoặc cập nhật chi tiết
-        for item in items:
-            print(f"Processing item: {item}")
-            if not isinstance(item, dict):
-                raise ValueError(f"Dữ liệu item không hợp lệ, không phải dict: {item}")
-            if item.get("actual_quantity") is None:
+            existing_details_query = "SELECT inventory_id FROM stocktake_detail WHERE stocktake_id = %s"
+            cursor.execute(existing_details_query, (stocktake_id,))
+            existing_inventory_ids = {row["inventory_id"] for row in cursor.fetchall()}
+
+            for inventory_id in existing_inventory_ids:
+                if not any(item.get("inventory_id") == inventory_id for item in items if item.get("actual_quantity") is not None):
+                    delete_detail_query = "DELETE FROM stocktake_detail WHERE stocktake_id = %s AND inventory_id = %s"
+                    cursor.execute(delete_detail_query, (stocktake_id, inventory_id))
+
+            for item in items:
+                if item.get("actual_quantity") is None:
+                    continue
+                product_id = get_product_id_from_inventory(item["inventory_id"])
+                if product_id is None:
+                    raise ValueError(f"Không tìm thấy product_id cho inventory_id {item['inventory_id']}")
+
+                variance_value = item.get("variance_value", (item["actual_quantity"] - item["system_quantity"]) * item.get("cost_price", 0))
+                if item["actual_quantity"] != item["system_quantity"] and not item.get("variance_type"):
+                    raise ValueError(f"Thiếu loại hao hụt cho inventory_id {item['inventory_id']}")
+                if item["actual_quantity"] != item["system_quantity"] and not item.get("variance_reason"):
+                    raise ValueError(f"Thiếu lý do chênh lệch cho inventory_id {item['inventory_id']}")
+
+                check_query = "SELECT id FROM stocktake_detail WHERE stocktake_id = %s AND inventory_id = %s"
+                cursor.execute(check_query, (stocktake_id, item["inventory_id"]))
+                existing = cursor.fetchone()
+
+                if existing:
+                    if isinstance(existing, tuple):
+                        existing_id = existing[0] if existing else None
+                    else:
+                        existing_id = existing.get("id") if existing else None
+
+                    if existing_id:
+                        update_detail_query = """
+                            UPDATE stocktake_detail 
+                            SET system_quantity = %s, actual_quantity = %s, 
+                                variance_type = %s, variance_reason = %s, variance_value = %s
+                            WHERE stocktake_id = %s AND inventory_id = %s
+                        """
+                        cursor.execute(update_detail_query, (
+                            item["system_quantity"],
+                            item["actual_quantity"],
+                            item["variance_type"] or None,
+                            item["variance_reason"] or None,
+                            variance_value,
+                            stocktake_id,
+                            item["inventory_id"]
+                        ))
+                    else:
+                        pass
+                else:
+                    insert_detail_query = """
+                        INSERT INTO stocktake_detail (stocktake_id, inventory_id, product_id, system_quantity, 
+                            actual_quantity, variance_type, variance_reason, variance_value)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """
+                    cursor.execute(insert_detail_query, (
+                        stocktake_id,
+                        item["inventory_id"],
+                        product_id,
+                        item["system_quantity"],
+                        item["actual_quantity"],
+                        item["variance_type"] or None,
+                        item["variance_reason"] or None,
+                        variance_value
+                    ))
+
+                if status == "Đã kiểm kê":
+                    if item["actual_quantity"] < 0:
+                        raise ValueError("Số lượng thực tế không hợp lệ")
+                    update_inventory_query = """
+                        UPDATE inventory
+                        SET current_quantity = %s, last_updated = %s
+                        WHERE id = %s
+                    """
+                    cursor.execute(update_inventory_query, (
+                        item["actual_quantity"],
+                        datetime.now(),
+                        item["inventory_id"]
+                    ))
+
+            conn.commit()
+            redis_client.delete("cache:stocktakes")
+            redis_client.delete("cache:inventory")
+            redis_client.delete(f"cache:stocktake:{stocktake_id}")
+            redis_client.delete("cache:kpi:*")
+            redis_client.delete("cache:charts:*")
+            redis_client.delete("cache:warnings:*")
+            redis_client.delete("cache:activities")
+            return {"id": stocktake_id}
+
+        except mysql.connector.errors.DatabaseError as db_error:
+            conn.rollback()
+            if attempt < max_retries - 1 and "deadlock" in str(db_error).lower():
+                time.sleep(retry_delay * (attempt + 1))
                 continue
-            product_id = get_product_id_from_inventory(item["inventory_id"])
-            print(f"Retrieved product_id for inventory_id {item['inventory_id']}: {product_id}")
-            if product_id is None:
-                raise ValueError(f"Không tìm thấy product_id cho inventory_id {item['inventory_id']}")
-
-            # Kiểm tra xem item đã tồn tại chưa
-            check_query = "SELECT id FROM stocktake_detail WHERE stocktake_id = %s AND inventory_id = %s"
-            cursor.execute(check_query, (stocktake_id, item["inventory_id"]))
-            existing = cursor.fetchone()
-
-            # Sử dụng variance_value từ frontend nếu có, nếu không thì tính lại
-            variance_value = item.get("variance_value", (item["actual_quantity"] - item["system_quantity"]) * item.get("cost_price", 0))
-
-            if existing:
-                update_detail_query = """
-                    UPDATE stocktake_detail 
-                    SET system_quantity = %s, actual_quantity = %s, 
-                        variance_type = %s, variance_reason = %s, variance_value = %s
-                    WHERE stocktake_id = %s AND inventory_id = %s
-                """
-                cursor.execute(update_detail_query, (
-                    item["system_quantity"],
-                    item["actual_quantity"],
-                    item["variance_type"] or None,
-                    item["variance_reason"] or None,
-                    variance_value,  # Sử dụng variance_value từ frontend
-                    stocktake_id,
-                    item["inventory_id"]
-                ))
-            else:
-                insert_detail_query = """
-                    INSERT INTO stocktake_detail (stocktake_id, inventory_id, product_id, system_quantity, 
-                        actual_quantity, variance_type, variance_reason, variance_value)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """
-                cursor.execute(insert_detail_query, (
-                    stocktake_id,
-                    item["inventory_id"],
-                    product_id,
-                    item["system_quantity"],
-                    item["actual_quantity"],
-                    item["variance_type"] or None,
-                    item["variance_reason"] or None,
-                    variance_value  # Sử dụng variance_value từ frontend
-                ))
-
-            # Nếu trạng thái là "Đã kiểm kê", cập nhật tồn kho
-            if status == "Đã kiểm kê":
-                update_inventory_query = """
-                    UPDATE inventory
-                    SET current_quantity = %s, last_updated = %s
-                    WHERE id = %s
-                """
-                cursor.execute(update_inventory_query, (
-                    item["actual_quantity"],
-                    datetime.now(),
-                    item["inventory_id"]
-                ))
-
-        conn.commit()
-        # Xóa cache liên quan sau khi cập nhật
-        redis_client.delete("cache:stocktakes")
-        redis_client.delete("cache:inventory")
-        redis_client.delete(f"cache:stocktake:{stocktake_id}")
-        return {"id": stocktake_id}
-    except Exception as e:
-        conn.rollback()
-        raise
-    finally:
-        cursor.close()
-        conn.close()
+            raise Exception("Xung đột dữ liệu, vui lòng thử lại sau.")
+        except Exception as e:
+            conn.rollback()
+            raise
+        finally:
+            cursor.close()
+            conn.close()
