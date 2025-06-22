@@ -1,7 +1,13 @@
-from database import get_db_connection
-from datetime import datetime
+import json
+from database import get_db_connection, redis_client
+from datetime import date, datetime
 
 def get_inbounds():
+    cache_key = "cache:inbound:list"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -14,7 +20,14 @@ def get_inbounds():
         """
         cursor.execute(query)
         inbounds = cursor.fetchall()
-        return inbounds or []
+        # Chuyển đổi date thành chuỗi trước khi lưu cache
+        processed_inbounds = [
+            {key: value.isoformat() if isinstance(value, (datetime, date)) else value
+             for key, value in inbound.items()}
+            for inbound in inbounds or []
+        ]
+        redis_client.setex(cache_key, 300, json.dumps(processed_inbounds))
+        return processed_inbounds
     except Exception as e:
         raise
     finally:
@@ -26,7 +39,6 @@ def create_inbound(supplier_id, date, created_by, notes, details):
     cursor = conn.cursor()
     try:
         cursor.execute("START TRANSACTION")
-        # Thêm bản ghi vào inbound với ngày hiện tại
         query = """
             INSERT INTO Inbound (supplier_id, date, total_amount, created_by, notes, status)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -35,7 +47,6 @@ def create_inbound(supplier_id, date, created_by, notes, details):
         inbound_id = cursor.lastrowid
         total_amount = 0
 
-        # Thêm chi tiết nhập vào inbound_detail
         for idx, detail in enumerate(details):
             product_id = detail.get('product_id')
             quantity = detail.get('quantity')
@@ -50,18 +61,18 @@ def create_inbound(supplier_id, date, created_by, notes, details):
             cursor.execute(detail_query, (inbound_id, product_id, quantity, unit_price, expiry_date, manufacturing_date, batch_number))
             total_amount += quantity * unit_price
 
-            # Thêm bản ghi mới vào inventory cho mỗi lô
             inventory_query = """
                 INSERT INTO inventory (product_id, batch_number, current_quantity, expiry_date, last_updated)
                 VALUES (%s, %s, %s, %s, %s)
             """
             cursor.execute(inventory_query, (product_id, batch_number, quantity, expiry_date, datetime.now()))
 
-        # Cập nhật total_amount trong inbound
         update_query = "UPDATE Inbound SET total_amount = %s WHERE id = %s"
         cursor.execute(update_query, (total_amount, inbound_id))
 
         conn.commit()
+        # Xóa cache sau khi cập nhật
+        redis_client.delete("cache:inbound:list")
         return {"id": inbound_id, "total_amount": total_amount}
     except Exception as e:
         conn.rollback()
@@ -71,6 +82,11 @@ def create_inbound(supplier_id, date, created_by, notes, details):
         conn.close()
 
 def get_inbound_by_id(inbound_id: int):
+    cache_key = f"cache:inbound:detail:{inbound_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -95,7 +111,15 @@ def get_inbound_by_id(inbound_id: int):
         """
         cursor.execute(detail_query, (inbound_id,))
         details = cursor.fetchall() or []
-        return {"inbound": inbound, "details": details}
+        result = {
+            "inbound": {key: value.isoformat() if isinstance(value, (datetime, date)) else value
+                        for key, value in inbound.items()},
+            "details": [{key: value.isoformat() if isinstance(value, (datetime, date)) else value
+                         for key, value in detail.items()}
+                        for detail in details]
+        }
+        redis_client.setex(cache_key, 300, json.dumps(result))
+        return result
     except Exception as e:
         raise
     finally:

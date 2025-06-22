@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from procedures.auth import get_current_user
 from procedures.manager.inbound import get_inbounds_list, get_suppliers, get_products, get_inbound_details
 from models.inbound_sql import create_inbound
+from database import redis_client
 from datetime import datetime
 from utils.templates import templates
 
@@ -11,7 +12,7 @@ router = APIRouter(prefix="/manager/inbound", tags=["manager_inbound"])
 @router.get("/add", response_class=HTMLResponse, include_in_schema=False)
 async def add_inbound_page(request: Request, user: dict = Depends(get_current_user)):
     suppliers = get_suppliers()
-    products = get_products()  # Lấy tất cả sản phẩm ban đầu
+    products = get_products()
     return templates.TemplateResponse("manager/inbound/add.html", {
         "request": request,
         "user": user,
@@ -49,14 +50,13 @@ async def list_products(request: Request, user: dict = Depends(get_current_user)
 @router.post("/add")
 async def add_inbound(
     request: Request,
-    supplier_id: int = Form(...),  # Nhận id trực tiếp từ form
-    date: str = Form(...),  # Không sử dụng, chỉ để giữ form hợp lệ
+    supplier_id: int = Form(...),
+    date: str = Form(...),
     notes: str = Form(None),
     user: dict = Depends(get_current_user)
 ):
     try:
         created_by = user.get("id")
-        # Sử dụng ngày hiện tại thay vì từ form
         date_obj = datetime.now().date()
         form_data = await request.form()
         products = []
@@ -74,7 +74,6 @@ async def add_inbound(
             quantity = int(form_data[quantity_key])
             manufacturing_date = datetime.strptime(form_data[manufacturing_date_key], "%Y-%m-%d").date()
             expiry_date = datetime.strptime(form_data[expiry_date_key], "%Y-%m-%d").date()
-            # Tự động tạo batch_number: LOT + YYYYMMDD + index
             batch_number = f"LOT{datetime.now().strftime('%Y%m%d')}{index}"
             products.append({
                 "product_id": product_id,
@@ -90,6 +89,12 @@ async def add_inbound(
             raise HTTPException(status_code=400, detail="Vui lòng thêm ít nhất một sản phẩm!")
 
         result = create_inbound(supplier_id, date_obj, created_by, notes, products)
+        # Xóa cache sau khi cập nhật
+        redis_client.delete("cache:inbound:list")
+        redis_client.delete("cache:products")
+        for key in redis_client.keys("cache:products:*"):
+            redis_client.delete(key)
+        redis_client.delete(f"cache:inbound:detail:{result['id']}")
         return JSONResponse(content={"message": "Thêm phiếu nhập thành công!", "id": result["id"]})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Dữ liệu không hợp lệ: {str(e)}")

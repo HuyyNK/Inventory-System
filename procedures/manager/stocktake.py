@@ -28,7 +28,7 @@ def get_inventory_list():
                 "product_id": item["product_id"],
                 "batch_number": item["batch_number"],
                 "current_quantity": item["current_quantity"],
-                "expiry_date": item["expiry_date"].isoformat() if item["expiry_date"] else None,
+                "expiry_date": item["expiry_date"].isoformat() if item["expiry_date"] and isinstance(item["expiry_date"], (datetime, date)) else str(item["expiry_date"]) if item["expiry_date"] else None,
                 "name": item["name"],
                 "sku": item["sku"],
                 "cost_price": float(item["cost_price"])

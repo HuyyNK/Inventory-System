@@ -1,7 +1,18 @@
-from database import get_db_connection
+import json
+from database import get_db_connection, redis_client
 from datetime import date, datetime
 
+def _convert_datetime(obj):
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError("Type not serializable")
+
 def get_stocktakes():
+    cache_key = "cache:stocktakes"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -21,6 +32,10 @@ def get_stocktakes():
         """
         cursor.execute(query)
         stocktakes = cursor.fetchall()
+        for stocktake in stocktakes:
+            if isinstance(stocktake["date"], (datetime, date)):
+                stocktake["date"] = stocktake["date"].isoformat()
+        redis_client.setex(cache_key, 300, json.dumps(stocktakes or [], default=_convert_datetime))
         return stocktakes or []
     except Exception as e:
         raise
@@ -29,6 +44,11 @@ def get_stocktakes():
         conn.close()
 
 def get_inventory():
+    cache_key = "cache:inventory"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -42,6 +62,17 @@ def get_inventory():
         """
         cursor.execute(query)
         inventory = cursor.fetchall()
+        for item in inventory:
+            # Xử lý expiry_date: chỉ gọi isoformat() nếu là datetime hoặc date
+            if item["expiry_date"] is not None:
+                if isinstance(item["expiry_date"], (datetime, date)):
+                    item["expiry_date"] = item["expiry_date"].isoformat()
+                else:
+                    # Nếu là chuỗi hoặc định dạng khác, giữ nguyên hoặc chuyển đổi nếu cần
+                    item["expiry_date"] = str(item["expiry_date"]) if item["expiry_date"] else None
+            else:
+                item["expiry_date"] = None
+        redis_client.setex(cache_key, 300, json.dumps(inventory or [], default=_convert_datetime))
         return inventory or []
     except Exception as e:
         raise
@@ -50,6 +81,11 @@ def get_inventory():
         conn.close()
 
 def get_product_id_from_inventory(inventory_id):
+    cache_key = f"cache:product_id:{inventory_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data) if cached_data != "null" else None
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -57,9 +93,9 @@ def get_product_id_from_inventory(inventory_id):
         cursor.execute(query, (inventory_id,))
         result = cursor.fetchone()
         print(f"get_product_id_from_inventory({inventory_id}) returned: {result}")
-        if result is None:
-            return None
-        return result["product_id"]
+        product_id = result["product_id"] if result else None
+        redis_client.setex(cache_key, 300, json.dumps(product_id) if product_id else "null")
+        return product_id
     except Exception as e:
         print(f"Error in get_product_id_from_inventory: {e}")
         raise
@@ -121,6 +157,10 @@ def create_stocktake(date, created_by, status, items):
                 ))
 
         conn.commit()
+        # Xóa cache liên quan sau khi tạo mới
+        redis_client.delete("cache:stocktakes")
+        redis_client.delete("cache:inventory")
+        redis_client.delete(f"cache:stocktake:{stocktake_id}")
         return {"id": stocktake_id}
     except Exception as e:
         conn.rollback()
@@ -130,6 +170,11 @@ def create_stocktake(date, created_by, status, items):
         conn.close()
 
 def get_stocktake(stocktake_id):
+    cache_key = f"cache:stocktake:{stocktake_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -162,6 +207,7 @@ def get_stocktake(stocktake_id):
             if row["detail_id"]:
                 row["expiry_date"] = row["expiry_date"].isoformat() if row["expiry_date"] and isinstance(row["expiry_date"], (datetime, date)) else str(row["expiry_date"]) if row["expiry_date"] else None
                 stocktake["details"].append(row)
+        redis_client.setex(cache_key, 300, json.dumps(stocktake, default=_convert_datetime))
         return stocktake
     except Exception as e:
         raise
@@ -261,6 +307,10 @@ def update_stocktake(stocktake_id, date, created_by, status, items):
                 ))
 
         conn.commit()
+        # Xóa cache liên quan sau khi cập nhật
+        redis_client.delete("cache:stocktakes")
+        redis_client.delete("cache:inventory")
+        redis_client.delete(f"cache:stocktake:{stocktake_id}")
         return {"id": stocktake_id}
     except Exception as e:
         conn.rollback()

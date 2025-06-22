@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from procedures.auth import get_current_user
 from procedures.manager.outbound import get_outbounds_list, get_products_list, create_new_outbound
 from models.outbound_sql import get_outbound_by_id
+from database import redis_client
 from datetime import datetime
 from utils.templates import templates
 
@@ -61,12 +62,16 @@ async def add_outbound(
         if not products:
             raise HTTPException(status_code=400, detail="Vui lòng thêm ít nhất một sản phẩm!")
 
-        # Kiểm tra outbound_type
         valid_outbound_types = ['Bán hàng', 'Chuyển kho', 'Hàng hỏng', 'Hết hạn', 'Khuyến mãi', 'Hoàn trả nhà cung cấp']
         if outbound_type not in valid_outbound_types:
             raise HTTPException(status_code=400, detail="Loại xuất không hợp lệ!")
 
         result = create_new_outbound(customer_name, date_obj, created_by, notes, outbound_type, products)
+        # Xóa cache sau khi thêm
+        redis_client.delete("cache:outbound:list")
+        redis_client.delete(f"cache:outbound:detail:{result['id']}")
+        for product in products:
+            redis_client.delete(f"cache:inventory:product:{product['product_id']}")
         return JSONResponse(content={"message": "Thêm phiếu xuất thành công!", "id": result["id"]})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Dữ liệu không hợp lệ: {str(e)}")
@@ -90,9 +95,11 @@ async def list_outbounds_api(request: Request, user: dict = Depends(get_current_
 @router.get("/detail/{outbound_id}", response_class=HTMLResponse, include_in_schema=False)
 async def detail_outbound_page(request: Request, outbound_id: int, user: dict = Depends(get_current_user)):
     try:
-        outbound, outbound_details = get_outbound_by_id(outbound_id)
-        if not outbound:
+        result = get_outbound_by_id(outbound_id)  # Lấy dictionary từ get_outbound_by_id
+        if not result:
             raise HTTPException(status_code=404, detail="Phiếu xuất không tồn tại")
+        outbound = result["outbound"]  # Lấy phần outbound từ dictionary
+        outbound_details = result["details"]  # Lấy phần details từ dictionary
         return templates.TemplateResponse("manager/outbound/detail.html", {
             "request": request,
             "user": user,

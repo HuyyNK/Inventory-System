@@ -1,7 +1,13 @@
-from database import get_db_connection
-from datetime import datetime
+import json
+from database import get_db_connection, redis_client
+from datetime import datetime, date
 
 def get_outbounds():
+    cache_key = "cache:outbound:list"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -14,7 +20,14 @@ def get_outbounds():
         """
         cursor.execute(query)
         outbounds = cursor.fetchall()
-        return outbounds or []
+        # Chuyển đổi date thành chuỗi trước khi lưu cache
+        processed_outbounds = [
+            {key: value.isoformat() if isinstance(value, (datetime, date)) else value
+             for key, value in outbound.items()}
+            for outbound in outbounds or []
+        ]
+        redis_client.setex(cache_key, 300, json.dumps(processed_outbounds))
+        return processed_outbounds
     except Exception as e:
         raise
     finally:
@@ -22,6 +35,11 @@ def get_outbounds():
         conn.close()
 
 def get_outbound_by_id(outbound_id: int):
+    cache_key = f"cache:outbound:detail:{outbound_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -46,7 +64,15 @@ def get_outbound_by_id(outbound_id: int):
         """
         cursor.execute(detail_query, (outbound_id,))
         details = cursor.fetchall() or []
-        return outbound, details
+        # Chuyển đổi date thành chuỗi
+        processed_outbound = {key: value.isoformat() if isinstance(value, (datetime, date)) else value
+                            for key, value in outbound.items()}
+        processed_details = [{key: value.isoformat() if isinstance(value, (datetime, date)) else value
+                            for key, value in detail.items()}
+                            for detail in details]
+        result = {"outbound": processed_outbound, "details": processed_details}
+        redis_client.setex(cache_key, 300, json.dumps(result))
+        return result
     except Exception as e:
         raise
     finally:
@@ -54,6 +80,11 @@ def get_outbound_by_id(outbound_id: int):
         conn.close()
 
 def get_products(supplier_id=None):
+    cache_key = f"cache:products:{supplier_id}" if supplier_id else "cache:products"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -63,7 +94,9 @@ def get_products(supplier_id=None):
         else:
             query = "SELECT id, name, market_price FROM Product"
             cursor.execute(query)
-        return cursor.fetchall() or []
+        products = cursor.fetchall() or []
+        redis_client.setex(cache_key, 600, json.dumps(products))  # TTL 10 phút
+        return products
     except Exception as e:
         raise
     finally:
@@ -71,6 +104,11 @@ def get_products(supplier_id=None):
         conn.close()
 
 def get_inventory_by_product(product_id):
+    cache_key = f"cache:inventory:product:{product_id}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -81,7 +119,15 @@ def get_inventory_by_product(product_id):
             ORDER BY expiry_date ASC
         """
         cursor.execute(query, (product_id,))
-        return cursor.fetchall() or []
+        inventory = cursor.fetchall() or []
+        # Chuyển đổi date thành chuỗi
+        processed_inventory = [
+            {key: value.isoformat() if isinstance(value, (datetime, date)) else value
+             for key, value in item.items()}
+            for item in inventory
+        ]
+        redis_client.setex(cache_key, 300, json.dumps(processed_inventory))
+        return processed_inventory
     except Exception as e:
         raise
     finally:
@@ -173,6 +219,11 @@ def create_outbound(customer_name, date, created_by, notes, outbound_type, produ
         cursor.execute(update_query, (total_amount, outbound_id))
 
         conn.commit()
+        # Xóa cache sau khi cập nhật
+        redis_client.delete("cache:outbound:list")
+        redis_client.delete(f"cache:outbound:detail:{outbound_id}")
+        for product in products:
+            redis_client.delete(f"cache:inventory:product:{product['product_id']}")
         return {"id": outbound_id, "total_amount": total_amount}
     except Exception as e:
         conn.rollback()

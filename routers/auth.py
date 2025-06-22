@@ -7,7 +7,7 @@ from models.user_sql import get_user_by_id_sql
 router = APIRouter(prefix="", tags=["auth"])
 templates = Jinja2Templates(directory="templates")
 
-@router.get("/login", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
     # Trả về trang đăng nhập
     return templates.TemplateResponse("login.html", {"request": request})
@@ -33,12 +33,12 @@ async def login(request: Request, username: str = Form(...), password: str = For
         "role_id": user["role_id"],
         "role_name": user["role_name"]
     }
-    return RedirectResponse(url="/manager/supplier/list", status_code=303)
+    return RedirectResponse(url="/manager/dashboard", status_code=303)
 
 @router.get("/logout")
 async def logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/login", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
 
 @router.get("/auth/me", response_model=dict)
 async def get_current_user_details(user: dict = Depends(get_current_user)):

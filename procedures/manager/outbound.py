@@ -1,4 +1,5 @@
-from datetime import datetime, date
+import json
+from database import get_db_connection, redis_client
 from models.outbound_sql import get_outbounds, get_products, get_inventory_by_product, create_outbound
 
 def get_outbounds_list():
@@ -6,26 +7,21 @@ def get_outbounds_list():
         outbounds = get_outbounds()
         if not outbounds:
             return []
-        processed_outbounds = [
-            {
-                key: value.isoformat() if isinstance(value, (datetime, date)) else value
-                for key, value in outbound.items()
-            }
-            for outbound in outbounds
-        ]
-        return processed_outbounds
+        return outbounds  # Dữ liệu đã được xử lý trong get_outbounds()
     except Exception as e:
         raise
 
 def get_products_list(supplier_id=None):
     try:
-        return get_products(supplier_id)
+        products = get_products(supplier_id)
+        return products
     except Exception as e:
         raise
 
 def get_inventory_for_product(product_id):
     try:
-        return get_inventory_by_product(product_id)
+        inventory = get_inventory_by_product(product_id)
+        return inventory
     except Exception as e:
         raise
 

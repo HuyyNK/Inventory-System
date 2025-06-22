@@ -1,4 +1,5 @@
-from database import get_db_connection
+import json
+from database import get_db_connection, redis_client
 from models.inbound_sql import get_inbounds, create_inbound, get_inbound_by_id
 from datetime import datetime, date
 
@@ -7,14 +8,7 @@ def get_inbounds_list():
         inbounds = get_inbounds()
         if not inbounds:
             return []
-        processed_inbounds = []
-        for inbound in inbounds:
-            processed_inbound = {
-                key: value.isoformat() if isinstance(value, (datetime, date)) else value
-                for key, value in inbound.items()
-            }
-            processed_inbounds.append(processed_inbound)
-        return processed_inbounds
+        return inbounds  # Dữ liệu đã được xử lý thành chuỗi trong get_inbounds()
     except Exception as e:
         raise
 
@@ -32,6 +26,11 @@ def get_suppliers():
         conn.close()
 
 def get_products(supplier_id=None):
+    cache_key = f"cache:products:{supplier_id}" if supplier_id else "cache:products"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -41,7 +40,9 @@ def get_products(supplier_id=None):
         else:
             query = "SELECT id, name FROM Product"
             cursor.execute(query)
-        return cursor.fetchall() or []
+        products = cursor.fetchall() or []
+        redis_client.setex(cache_key, 300, json.dumps(products))
+        return products
     except Exception as e:
         raise
     finally:
@@ -53,19 +54,6 @@ def get_inbound_details(inbound_id: int):
         inbound_data = get_inbound_by_id(inbound_id)
         if not inbound_data:
             return None, []
-        inbound = inbound_data["inbound"]
-        details = inbound_data["details"]
-        processed_details = [
-            {
-                key: value.isoformat() if isinstance(value, (datetime, date)) else value
-                for key, value in detail.items()
-            }
-            for detail in details
-        ]
-        processed_inbound = {
-            key: value.isoformat() if isinstance(value, (datetime, date)) else value
-            for key, value in inbound.items()
-        }
-        return processed_inbound, processed_details
+        return inbound_data["inbound"], inbound_data["details"]  # Dữ liệu đã được xử lý
     except Exception as e:
         raise
