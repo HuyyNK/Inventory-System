@@ -1,8 +1,19 @@
-from database import get_db_connection
-from datetime import datetime, timedelta
+from database import get_db_connection, redis_client
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+import json
+
+def _convert_datetime(obj):
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError("Type not serializable")
 
 def fetch_kpi(expiry_threshold):
+    cache_key = f"cache:kpi:{expiry_threshold.isoformat()}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -40,6 +51,7 @@ def fetch_kpi(expiry_threshold):
         result["low_stock"] = int(result["low_stock"] or 0)
         result["expiring"] = int(result["expiring"] or 0)
         result["loss_percentage"] = float(result["loss_percentage"] or 0)
+        redis_client.setex(cache_key, 300, json.dumps(result, default=_convert_datetime))
         return result
     except Exception as e:
         raise
@@ -48,6 +60,11 @@ def fetch_kpi(expiry_threshold):
         conn.close()
 
 def fetch_charts(six_months_ago, one_month_ago):
+    cache_key = f"cache:charts:{six_months_ago.isoformat()}:{one_month_ago.isoformat()}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -124,7 +141,7 @@ def fetch_charts(six_months_ago, one_month_ago):
         stacked_labels = [row["storage_location"] or "Không xác định" for row in stacked_data] or ["Không xác định"]
         stacked_values = [int(row["total_quantity"]) for row in stacked_data] or [0]
 
-        return {
+        result = {
             "pie_labels": pie_labels,
             "pie_values": pie_values,
             "line_labels": line_labels,
@@ -135,6 +152,8 @@ def fetch_charts(six_months_ago, one_month_ago):
             "stacked_labels": stacked_labels,
             "stacked_values": stacked_values
         }
+        redis_client.setex(cache_key, 300, json.dumps(result, default=_convert_datetime))
+        return result
     except Exception as e:
         raise
     finally:
@@ -142,6 +161,11 @@ def fetch_charts(six_months_ago, one_month_ago):
         conn.close()
 
 def fetch_warnings(expiry_threshold, last_date):
+    cache_key = f"cache:warnings:{expiry_threshold.isoformat()}:{last_date.isoformat()}"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -184,7 +208,7 @@ def fetch_warnings(expiry_threshold, last_date):
         """
         cursor.execute(query, (expiry_threshold, expiry_threshold, expiry_threshold, expiry_threshold, expiry_threshold, last_date))
         warnings = cursor.fetchall() or []
-        return [{
+        result = [{
             "name": row["name"],
             "batch_number": row["batch_number"],
             "current_quantity": int(row["current_quantity"]),
@@ -193,6 +217,8 @@ def fetch_warnings(expiry_threshold, last_date):
             "action": row["action"],
             "inventory_id": int(row["inventory_id"]) if row["inventory_id"] else None
         } for row in warnings]
+        redis_client.setex(cache_key, 300, json.dumps(result, default=_convert_datetime))
+        return result
     except Exception as e:
         raise
     finally:
@@ -200,6 +226,11 @@ def fetch_warnings(expiry_threshold, last_date):
         conn.close()
 
 def fetch_activities():
+    cache_key = "cache:activities"
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -243,7 +274,7 @@ def fetch_activities():
         """
         cursor.execute(query)
         activities = cursor.fetchall() or []
-        return [{
+        result = [{
             "date": row["date"].isoformat() if row["date"] else None,
             "activity_type": row["activity_type"],
             "code": row["code"],
@@ -251,6 +282,8 @@ def fetch_activities():
             "description": row["description"],
             "stocktake_id": int(row["stocktake_id"]) if row.get("stocktake_id") else None
         } for row in activities]
+        redis_client.setex(cache_key, 300, json.dumps(result, default=_convert_datetime))
+        return result
     except Exception as e:
         raise
     finally:
