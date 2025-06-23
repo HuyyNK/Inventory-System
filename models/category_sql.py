@@ -35,15 +35,21 @@ def add_category_sql(name: str, description: str):
 def update_category_sql(category_id: int, name: str, description: str):
     conn = get_db_connection()
     cursor = conn.cursor()
+    # Kiểm tra tồn tại trước
+    cursor.execute("SELECT id FROM Category WHERE id = %s", (category_id,))
+    if not cursor.fetchone():
+        cursor.close()
+        conn.close()
+        return False
+    # Thực hiện cập nhật
     cursor.execute(
         "UPDATE Category SET name = %s, description = %s WHERE id = %s",
         (name, description, category_id)
     )
-    affected_rows = cursor.rowcount
     conn.commit()
     cursor.close()
     conn.close()
-    return affected_rows > 0
+    return True  # Trả về True nếu danh mục tồn tại, bất kể có thay đổi hay không
 
 def get_category_by_id_sql(category_id: int):
     conn = get_db_connection()

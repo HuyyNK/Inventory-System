@@ -28,7 +28,7 @@
                             {% set name = 'name' %}
                             {% set required = True %}
                             {% set placeholder = 'Tên nhà cung cấp' %}
-                            {% set value = '' %}
+                            {% set value = supplier.name if supplier else '' %}
                             {% include 'components/input.html' %}
                         </div>
                         <div class="supplieradd-field">
@@ -36,7 +36,7 @@
                             {% set type = 'email' %}
                             {% set name = 'email' %}
                             {% set placeholder = 'Email' %}
-                            {% set value = '' %}
+                            {% set value = supplier.email if supplier else '' %}
                             {% include 'components/input.html' %}
                         </div>
                     </div>
@@ -46,7 +46,7 @@
                             {% set type = 'text' %}
                             {% set name = 'phone' %}
                             {% set placeholder = 'Số điện thoại' %}
-                            {% set value = '' %}
+                            {% set value = supplier.phone if supplier else '' %}
                             {% include 'components/input.html' %}
                         </div>
                         <div class="supplieradd-field">
@@ -54,7 +54,7 @@
                             {% set type = 'text' %}
                             {% set name = 'address' %}
                             {% set placeholder = 'Địa chỉ' %}
-                            {% set value = '' %}
+                            {% set value = supplier.address if supplier else '' %}
                             {% include 'components/input.html' %}
                         </div>
                     </div>
@@ -182,44 +182,6 @@
 
             // Lấy supplier_id từ URL
             const supplierId = window.location.pathname.split('/').pop();
-
-            // Hàm lấy thông tin nhà cung cấp từ API
-            async function fetchSupplier() {
-                try {
-                    const response = await fetch(`/manager/supplier/${supplierId}`, {
-                        credentials: 'include',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-                    if (!response.ok) {
-                        if (response.status === 401) {
-                            window.location.href = '/login';
-                            return null;
-                        }
-                        throw new Error('Failed to fetch supplier');
-                    }
-                    return await response.json();
-                } catch (error) {
-                    messageDiv.style.display = 'block';
-                    messageDiv.className = 'error';
-                    messageDiv.textContent = 'Lỗi: ' + error.message;
-                    return null;
-                }
-            }
-
-            // Hàm điền dữ liệu vào form
-            function populateForm(supplier) {
-                if (!supplier) return;
-                form.querySelector('input[name="name"]').value = supplier.name || '';
-                form.querySelector('input[name="email"]').value = supplier.email || '';
-                form.querySelector('input[name="phone"]').value = supplier.phone || '';
-                form.querySelector('input[name="address"]').value = supplier.address || '';
-            }
-
-            // Tải dữ liệu nhà cung cấp khi trang được tải
-            const supplier = await fetchSupplier();
-            populateForm(supplier);
 
             // Xử lý sự kiện submit form
             form.addEventListener('submit', async (e) => {

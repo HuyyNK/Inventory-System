@@ -35,15 +35,21 @@ def add_supplier_sql(name: str, phone: str, email: str, address: str):
 def update_supplier_sql(supplier_id: int, name: str, phone: str, email: str, address: str):
     conn = get_db_connection()
     cursor = conn.cursor()
+    # Kiểm tra tồn tại trước
+    cursor.execute("SELECT id FROM supplier WHERE id = %s", (supplier_id,))
+    if not cursor.fetchone():
+        cursor.close()
+        conn.close()
+        return False
+    # Thực hiện cập nhật
     cursor.execute(
         "UPDATE supplier SET name = %s, phone = %s, email = %s, address = %s WHERE id = %s",
         (name, phone, email, address, supplier_id)
     )
-    affected_rows = cursor.rowcount
     conn.commit()
     cursor.close()
     conn.close()
-    return affected_rows > 0
+    return True  # Trả về True nếu nhà cung cấp tồn tại, bất kể có thay đổi hay không
 
 def get_supplier_by_id_sql(supplier_id: int):
     conn = get_db_connection()

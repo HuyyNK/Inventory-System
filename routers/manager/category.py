@@ -10,8 +10,6 @@ templates = Jinja2Templates(directory="templates")
 # -----------------------------------------------
 # HTML ROUTES
 # Các route này trả về nội dung HTML, được sử dụng để render giao diện người dùng.
-# Mục đích: Cung cấp các trang web (list.html, add.html, update.html) để người dùng tương tác.
-# Đặt các route tĩnh (như /list, /add) trước route động (như /{category_id}) để tránh xung đột.
 # -----------------------------------------------
 
 @router.get("/list", response_class=HTMLResponse, include_in_schema=False)
@@ -24,9 +22,12 @@ async def add_category_page(request: Request, user: dict = Depends(get_current_u
 
 @router.get("/update/{category_id}", response_class=HTMLResponse)
 async def update_category_page(request: Request, category_id: int, user: dict = Depends(get_current_user)):
+    category = get_category_by_id(category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
     return templates.TemplateResponse(
         "manager/category/update.html",
-        {"request": request, "user": user}
+        {"request": request, "user": user, "category": category}
     )
 
 @router.post("/add")
@@ -48,7 +49,6 @@ async def add_category_form(
 # -----------------------------------------------
 # JSON ROUTES
 # Các route này trả về dữ liệu JSON, được sử dụng cho các yêu cầu AJAX/Fetch từ frontend.
-# Mục đích: Cung cấp dữ liệu động để frontend xử lý (lấy danh sách, thêm, sửa, xóa danh mục).
 # -----------------------------------------------
 
 @router.get("/", response_model=list[dict])

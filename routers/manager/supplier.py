@@ -39,9 +39,12 @@ async def update_supplier_page(request: Request, supplier_id: int, user: dict = 
     Truy cập qua URL /manager/suppliers/update/{supplier_id}.
     Yêu cầu người dùng đăng nhập (get_current_user).
     """
+    supplier = get_supplier_by_id(supplier_id)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
     return templates.TemplateResponse(
         "manager/supplier/update.html",
-        {"request": request, "user": user}
+        {"request": request, "user": user, "supplier": supplier}
     )
 
 @router.post("/add")
@@ -60,7 +63,7 @@ async def add_supplier_form(
     """
     try:
         add_supplier(name, phone, email, address)
-        return RedirectResponse(url="/manager/suppliers/list?success=Thêm nhà cung cấp thành công", status_code=303)
+        return RedirectResponse(url="/manager/supplier/list?success=Thêm nhà cung cấp thành công", status_code=303)
     except Exception as e:
         return templates.TemplateResponse(
             "manager/supplier/add.html",

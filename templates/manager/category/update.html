@@ -28,7 +28,7 @@
                             {% set name = 'name' %}
                             {% set required = True %}
                             {% set placeholder = 'Tên danh mục' %}
-                            {% set value = '' %}
+                            {% set value = category.name if category else '' %}
                             {% include 'components/input.html' %}
                         </div>
                         <div class="categoryadd-field">
@@ -36,7 +36,7 @@
                             {% set type = 'text' %}
                             {% set name = 'description' %}
                             {% set placeholder = 'Mô tả' %}
-                            {% set value = '' %}
+                            {% set value = category.description if category else '' %}
                             {% include 'components/input.html' %}
                         </div>
                     </div>
@@ -163,42 +163,6 @@
 
             // Lấy category_id từ URL
             const categoryId = window.location.pathname.split('/').pop();
-
-            // Hàm lấy thông tin danh mục từ API
-            async function fetchCategory() {
-                try {
-                    const response = await fetch(`/manager/category/${categoryId}`, {
-                        credentials: 'include',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-                    if (!response.ok) {
-                        if (response.status === 401) {
-                            window.location.href = '/login';
-                            return null;
-                        }
-                        throw new Error('Failed to fetch category');
-                    }
-                    return await response.json();
-                } catch (error) {
-                    messageDiv.style.display = 'block';
-                    messageDiv.className = 'error';
-                    messageDiv.textContent = 'Lỗi: ' + error.message;
-                    return null;
-                }
-            }
-
-            // Hàm điền dữ liệu vào form
-            function populateForm(category) {
-                if (!category) return;
-                form.querySelector('input[name="name"]').value = category.name || '';
-                form.querySelector('input[name="description"]').value = category.description || '';
-            }
-
-            // Tải dữ liệu danh mục khi trang được tải
-            const category = await fetchCategory();
-            populateForm(category);
 
             // Xử lý sự kiện submit form
             form.addEventListener('submit', async (e) => {
