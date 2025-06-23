@@ -14,17 +14,22 @@ from routers.manager.outbound import router as manager_outbound_router
 from routers.manager.employee import router as manager_employee_router
 from routers.manager.stocktake import router as manager_stocktake_router
 from routers.manager.dashboard import router as manager_dashboard_router
-from utils.templates import templates  # Nhập templates chia sẻ
+from routers.employee.dashboard import router as employee_dashboard_router
+from routers.employee.product import router as employee_product_router
+from routers.employee.category import router as employee_category_router
+from routers.employee.supplier import router as employee_supplier_router
+from routers.employee.inbound import router as employee_inbound_router
+from routers.employee.outbound import router as employee_outbound_router
+from routers.employee.stocktake import router as employee_stocktake_router
+from routers.employee.user import router as employee_user_router
+from utils.templates import templates
 
 app = FastAPI()
 
-# Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Add session middleware
 app.add_middleware(SessionMiddleware, secret_key="simple-secret-key-for-testing")
 
-# Include routers
 app.include_router(auth_router)
 app.include_router(manager_supplier_router)
 app.include_router(manager_user)
@@ -35,50 +40,12 @@ app.include_router(manager_outbound_router)
 app.include_router(manager_employee_router)
 app.include_router(manager_stocktake_router)
 app.include_router(manager_dashboard_router)
+app.include_router(employee_dashboard_router)
+app.include_router(employee_product_router)
+app.include_router(employee_category_router)
+app.include_router(employee_supplier_router)
+app.include_router(employee_inbound_router)
+app.include_router(employee_outbound_router)
+app.include_router(employee_stocktake_router)
+app.include_router(employee_user_router)
 
-# Khởi tạo Redis client (async)
-async def get_redis():
-    redis_client = redis.Redis(
-        host='localhost',  # sửa lại nếu cần dùng 'localhost' hay '127.0.0.1'
-        port=6379,
-        decode_responses=True
-    )
-    try:
-        print("🔌 Đang kiểm tra kết nối Redis...")
-        pong = await redis_client.ping()
-        print(f"✅ Phản hồi từ Redis: {pong}")
-        yield redis_client
-    except RedisConnectionError as e:
-        print(f"❌ Lỗi kết nối Redis: {e}")
-        raise HTTPException(status_code=503, detail=f"Lỗi kết nối Redis: {str(e)}")
-    except Exception as e:
-        print(f"❌ Lỗi không xác định: {e}")
-        raise HTTPException(status_code=500, detail=f"Lỗi không xác định: {str(e)}")
-    finally:
-        await redis_client.close()
-
-# Endpoint kiểm tra kết nối Redis
-@app.get("/redis-test")
-async def redis_test(redis=Depends(get_redis)):
-    try:
-        pong = await redis.ping()
-        print(f"📡 Ping Redis trả về: {pong}")
-        if pong:  # Thay vì kiểm tra == "PONG"
-            info = await redis.info()
-            return {
-                "message": "Kết nối Redis thành công!",
-                "status": "success",
-                "redis_response": pong,
-                "redis_info": {
-                    "connected_clients": info.get("connected_clients", "N/A"),
-                    "used_memory": info.get("used_memory_human", "N/A")
-                }
-            }
-        else:
-            raise HTTPException(status_code=500, detail="Kết nối Redis thất bại, phản hồi không mong muốn.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý ping Redis: {str(e)}")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -13,7 +13,7 @@
         </div>
         <div class="body">
             <div class="body-left">
-                {% include 'components/sidebar_manager.html' %}
+                {% include 'components/sidebar_employee.html' %}
             </div>
             <div class="body-right">
                 <h2>Thông tin cá nhân:</h2>
@@ -94,7 +94,7 @@
                     </div>
 
                     <div class="user-profile-btns">
-                        <a style="text-decoration: none" href="/manager/dashboard">
+                        <a style="text-decoration: none" href="/employee/dashboard">
                             {% include 'components/exit_button.html' %}
                         </a>
                         {% include 'components/save_button.html' %}
@@ -225,7 +225,7 @@
 
                 const formData = new FormData(form);
                 const userData = {
-                    full_name: formData.get('full_name'),
+                    full_name: formData.get('full_name').trim(),
                     phone: formData.get('phone') || null,
                     email: formData.get('email') || null,
                     address: formData.get('address') || null,
@@ -233,13 +233,23 @@
                     gender: formData.get('gender') || null
                 };
 
+                if (!userData.full_name) {
+                    showMessage('Họ tên là bắt buộc.', 'error');
+                    return;
+                }
+                if (userData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+                    showMessage('Email không hợp lệ.', 'error');
+                    return;
+                }
+                if (userData.phone && !/^\d{10}$/.test(userData.phone)) {
+                    showMessage('Số điện thoại phải là 10 chữ số.', 'error');
+                    return;
+                }
+
                 try {
-                    const response = await fetch('/manager/me', {
+                    const response = await fetch('/employee/me', {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         credentials: 'include',
                         body: JSON.stringify(userData)
                     });
@@ -253,18 +263,18 @@
                         throw new Error(errorData.detail || 'Failed to update profile');
                     }
 
-                    messageDiv.style.display = 'block';
-                    messageDiv.className = 'success';
-                    messageDiv.textContent = 'Cập nhật thông tin cá nhân thành công';
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
+                    showMessage('Cập nhật thông tin cá nhân thành công.', 'success');
+                    setTimeout(() => window.location.reload(), 1000);
                 } catch (error) {
-                    messageDiv.style.display = 'block';
-                    messageDiv.className = 'error';
-                    messageDiv.textContent = 'Lỗi: ' + error.message;
+                    showMessage('Lỗi: ' + error.message, 'error');
                 }
             });
+
+            function showMessage(message, type) {
+                messageDiv.style.display = 'block';
+                messageDiv.className = type;
+                messageDiv.textContent = message;
+            }
         });
     </script>
 </body>

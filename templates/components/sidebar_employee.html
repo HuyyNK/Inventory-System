@@ -1,0 +1,206 @@
+<link rel="stylesheet" href="/static/css/style.css">
+<div id="sidebar-employee" class="sidebar-employee">
+    <div class="general">
+        <div class="general-text">
+            <p>Trung tâm</p>
+        </div>
+    </div>
+    <div class="align">
+        <div class="dashboard">
+            <div class="dashboard-text">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M20 17.0001V11.4521V11.4514C20 10.9176 20 10.6505 19.9351 10.402C19.8775 10.1816 19.7827 9.97268 19.6548 9.78425C19.5104 9.57162 19.3096 9.39574 18.9074 9.04387L14.1074 4.84387C13.3608 4.19059 12.9875 3.86399 12.5674 3.73975C12.1972 3.63027 11.8028 3.63027 11.4326 3.73975C11.0127 3.86392 10.6398 4.19023 9.894 4.8428L9.89278 4.84387L5.09277 9.04387L5.09182 9.04471C4.69032 9.39602 4.48944 9.57179 4.34521 9.78425C4.2173 9.97268 4.12255 10.1816 4.06497 10.402C4 10.6506 4 10.9178 4 11.4521V17.0001C4 17.932 4 18.3978 4.15224 18.7654C4.35523 19.2554 4.74481 19.6448 5.23486 19.8478C5.60241 20 6.06835 20 7.00023 20C7.93211 20 8.39782 20 8.76537 19.8478C9.25542 19.6448 9.64467 19.2554 9.84766 18.7654C9.9999 18.3978 10 17.9319 10 17V16C10 14.8954 10.8954 14 12 14C13.1046 14 14 14.8954 14 16V17C14 17.9319 14 18.3978 14.1522 18.7654C14.3552 19.2554 14.7448 19.6448 15.2349 19.8478C15.6024 20 16.0683 20 17.0002 20C17.9321 20 18.3978 20 18.7654 19.8478C19.2554 19.6448 19.6447 19.2554 19.8477 18.7654C19.9999 18.3978 20 17.932 20 17.0001Z" stroke="#E14177" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <a style="text-decoration: none; color: inherit;" href="/employee/dashboard">Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <div class="align">
+        <div class="management" id="management" onclick="toggleDeeperManagement()">
+            <div class="management-text">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 20V11H4.59961C4.03956 11 3.75981 11 3.5459 11.109C3.35774 11.2049 3.20487 11.3579 3.10899 11.546C3 11.7599 3 12.0399 3 12.6V20H9ZM9 20H15M9 20V5.59998C9 5.03992 9 4.75993 9.10899 4.54602C9.20487 4.35786 9.35774 4.20487 9.5459 4.10899C9.75981 4 10.0396 4 10.5996 4H13.3996C13.9597 4 14.2405 4 14.4544 4.10899C14.6425 4.20487 14.7948 4.35786 14.8906 4.54602C14.9996 4.75993 15 5.03992 15 5.59998V20M15 20L21 20V9.59998C21 9.03992 20.9996 8.75993 20.8906 8.54602C20.7948 8.35786 20.6425 8.20487 20.4544 8.10899C20.2405 8 19.9601 8 19.4 8H15V20Z" stroke="#01B3EF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Quản lý
+            </div>
+            <svg id="arrow-icon-management" xmlns="http://www.w3.org/2000/svg" width="24" height="30" viewBox="0 0 24 30" fill="none">
+                <path d="M19 11.25L12 20L5 11.25" stroke="#0C0C0D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        </div>
+        <div id="management-deeper" class="management-deeper">
+            <div class="products">
+                <a style="text-decoration: none; background: none; color: inherit;" href="/employee/product/list">Sản phẩm</a>
+            </div>
+            <div class="imports">
+                <a style="text-decoration: none; background: none; color: inherit;" href="/employee/category/list">Loại sản phẩm</a>
+            </div>
+            <div class="imports">
+                <a style="text-decoration: none; background: none; color: inherit;" href="/employee/supplier/list">Nhà cung cấp</a>
+            </div>
+            <div class="imports">
+                <a style="text-decoration: none; background: none; color: inherit;" href="/employee/inbound/list">Nhập hàng</a>
+            </div>
+            <div class="exports">
+                <a style="text-decoration: none; background: none; color: inherit;" href="/employee/outbound/list">Xuất hàng</a>
+            </div>
+            <div class="inventory">
+                <a style="text-decoration: none; background: none; color: inherit;" href="/employee/stocktake/list">Kiểm kê</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .sidebar-employee {
+        width: 250px;
+        height: calc(100%);
+        overflow-y: auto;
+        display: inline-flex;
+        position: relative;
+        padding: 20px;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        background: var(--White, #FFF);
+        scrollbar-width: thin;
+        scrollbar-color: #c1c1c1 #f5f5f5;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .sidebar-employee::-webkit-scrollbar {
+        width: 8px;
+        border-radius: 10px;
+    }
+
+    .sidebar-employee::-webkit-scrollbar-thumb {
+        background-color: #c1c1c1;
+        border-radius: 10px;
+    }
+
+    .sidebar-employee::-webkit-scrollbar-track {
+        background: #f5f5f5;
+        border-radius: 10px;
+    }
+
+    .align {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+        align-self: stretch;
+        height: auto;
+    }
+
+    .general {
+        display: flex;
+        height: 30px;
+        justify-content: space-between;
+        align-items: center;
+        align-self: stretch;
+    }
+
+    .general-text {
+        display: flex;
+        height: 30px;
+        align-items: center;
+        gap: 20px;
+        flex: 1 0 0;
+    }
+
+    .general-text p {
+        flex: 1 0 0;
+        color: var(--Silver, #AFAFAF);
+        font-family: Inter;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal;
+    }
+
+    .dashboard, .management {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        align-self: stretch;
+        cursor: pointer;
+    }
+
+    .dashboard:hover, .management:hover {
+        background: var(--Light-Blue, rgba(109, 207, 251, 0.20));
+    }
+
+    .dashboard-text, .management-text {
+        display: flex;
+        height: 30px;
+        align-items: center;
+        gap: 20px;
+        display: flex;
+        height: 30px;
+        align-items: center;
+        color: #000;
+        font-family: Inter;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal;
+    }
+
+    .management-deeper {
+        display: flex;
+        height: auto;
+        overflow-y: auto;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+        align-self: stretch;
+        transition: max-height 0.3s ease;
+    }
+
+    .management-deeper {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+    }
+
+    .management-deeper.open {
+        max-height: 500px;
+    }
+
+    .products, .imports, .exports, .inventory {
+        display: flex;
+        height: 30px;
+        padding: 0px 0px 0px 45px;
+        align-items: center;
+        gap: 10px;
+        align-self: stretch;
+        color: #000;
+        font-family: Inter;
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: normal;
+        cursor: pointer;
+    }
+
+    .products:hover, .imports:hover, .exports:hover, .inventory:hover {
+        background: var(--Light-Blue, rgba(109, 207, 251, 0.20));
+    }
+
+    #arrow-icon-management {
+        transition: transform 0.3s ease;
+    }
+</style>
+
+<script>
+    function toggleDeeperManagement() {
+        const deeperElement = document.getElementById('management-deeper');
+        const arrowIcon = document.getElementById('arrow-icon-management');
+        if (deeperElement.classList.contains('open')) {
+            deeperElement.classList.remove('open');
+            arrowIcon.style.transform = 'rotate(0deg)';
+        } else {
+            deeperElement.classList.add('open');
+            arrowIcon.style.transform = 'rotate(180deg)';
+        }
+    }
+</script>

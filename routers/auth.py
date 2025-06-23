@@ -9,7 +9,6 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
-    # Trả về trang đăng nhập
     return templates.TemplateResponse("login.html", {"request": request})
 
 @router.post("/login")
@@ -19,7 +18,6 @@ async def login(request: Request, username: str = Form(...), password: str = For
         return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"})
     if not user["is_active"]:
         return templates.TemplateResponse("login.html", {"request": request, "error": "User is inactive"})
-    # Lưu toàn bộ thông tin người dùng vào session
     request.session["user"] = {
         "id": user["id"],
         "username": user["username"],
@@ -33,7 +31,8 @@ async def login(request: Request, username: str = Form(...), password: str = For
         "role_id": user["role_id"],
         "role_name": user["role_name"]
     }
-    return RedirectResponse(url="/manager/dashboard", status_code=303)
+    redirect_url = "/employee/dashboard" if user["role_id"] == 2 else "/manager/dashboard"
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 @router.get("/logout")
 async def logout(request: Request):
@@ -43,7 +42,6 @@ async def logout(request: Request):
 @router.get("/auth/me", response_model=dict)
 async def get_current_user_details(user: dict = Depends(get_current_user)):
     try:
-        # Lấy thông tin chi tiết từ database
         user_details = get_user_by_id_sql(user["id"])
         if not user_details:
             raise HTTPException(status_code=404, detail="Không tìm thấy thông tin người dùng")

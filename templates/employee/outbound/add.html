@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thêm phiếu xuất hàng</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
+
+        /* CSS giữ nguyên như trước */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .body { display: flex; flex: 1 0 0; overflow: hidden; }
+        .body-left { height: 100%; overflow-y: auto; }
+        .body-right { display: flex; padding: 20px; flex-direction: column; align-items: flex-start; gap: 20px; flex: 1 0 0; align-self: stretch; overflow-y: auto; color: #000; font-family: Inter, sans-serif; font-size: 16px; font-style: normal; font-weight: 400; line-height: normal; }
+        .body-right h1 { color: #000; font-family: Inter, sans-serif; font-size: 16px; font-style: normal; font-weight: 700; line-height: normal; }
+        .body-right h2 { color: #01B3EF; font-family: Inter, sans-serif; font-size: 16px; font-style: normal; font-weight: 700; line-height: normal; }
+        .outboundadd-fields { display: flex; width: 100%; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+        .outboundadd-field { display: flex; width: 48%; flex-direction: column; align-items: flex-start; gap: 10px; flex-shrink: 0; color: #000; font-family: Inter, sans-serif; font-size: 16px; font-style: normal; font-weight: 400; line-height: normal; }
+        .outboundadd-btns { display: flex; width: 100%; justify-content: flex-end; align-items: center; gap: 20px; }
+        #message { width: 100%; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        #message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        #message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .product-details { width: 100%; }
+        .product-row { display: grid; grid-template-columns: 3fr 1fr 1fr 2fr; gap: 15px; padding: 10px 0; align-items: center; margin-bottom: 10px; }
+        .add-container { margin-top: 10px; }
+        .btn-add-product {
+            background-color: #01b3ef;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            height: 40px;
+            border-radius: 10px;
+        }
+        .btn-add-product:hover {
+            background-color: #0198c7;
+        }
+    </style>
+</head>
+<body>
+    <div class="outboundadd">
+        <div class="outboundadd-heading">
+            {% include 'components/heading.html' %}
+        </div>
+        <div class="body">
+            <div class="body-left">
+                {% include 'components/sidebar_employee.html' %}
+            </div>
+            <div class="body-right">
+                Nhân viên / Xuất hàng / Thêm phiếu xuất
+                <h1>Tạo phiếu xuất hàng:</h1>
+                <div id="message" style="display: none;"></div>
+                <form id="add-outbound-form" method="POST" enctype="multipart/form-data">
+                    <h2>Thông tin phiếu xuất:</h2>
+                    <div class="outboundadd-fields">
+                        <div class="outboundadd-field">
+                            Tên khách hàng
+                            {% set type = 'text' %}
+                            {% set name = 'customer_name' %}
+                            {% set value = '' %}
+                            {% set placeholder = 'Nhập tên khách hàng (tùy chọn)' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="outboundadd-field">
+                            Ngày xuất hàng
+                            {% set type = 'date' %}
+                            {% set name = 'date' %}
+                            {% set value = today %}
+                            {% set required = True %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+                    <div class="outboundadd-fields">
+                        <div class="outboundadd-field">
+                            Người xuất hàng
+                            {% set type = 'text' %}
+                            {% set name = 'created_by_name' %}
+                            {% set value = user.full_name if user else '' %}
+                            {% set readonly = True %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="outboundadd-field">
+                            Loại xuất
+                            {% set dropdown_id = 'outbound-type-dropdown' %}
+                            {% set name = 'outbound_type' %}
+                            {% set options = ['Bán hàng', 'Chuyển kho', 'Hàng hỏng', 'Hết hạn', 'Khuyến mãi', 'Hoàn trả nhà cung cấp'] %}
+                            {% set selected_text = 'Chọn loại xuất' %}
+                            {% include 'components/dropdown_select.html' %}
+                        </div>
+                    </div>
+                    <div class="outboundadd-fields">
+                        <div class="outboundadd-field">
+                            Ghi chú
+                            {% set type = 'text' %}
+                            {% set name = 'notes' %}
+                            {% set value = '' %}
+                            {% set readonly = False %}
+                            {% set required = False %}
+                            {% set placeholder = 'Ghi chú' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                        <div class="outboundadd-field">
+                            Tổng tiền
+                            {% set type = 'text' %}
+                            {% set name = 'total_amount' %}
+                            {% set readonly = True %}
+                            {% set value = '0 đ' %}
+                            {% set id = 'totalAmount' %}
+                            {% include 'components/input.html' %}
+                        </div>
+                    </div>
+
+                    <h2>Chi tiết xuất hàng:</h2>
+                    <div class="product-details">
+                        <div id="productContainer">
+                            <div class="product-row" data-index="0">
+                                <div>
+                                    <div style="margin-bottom: 10px;">Sản phẩm</div>
+                                    {% set dropdown_id = 'product-dropdown-0' %}
+                                    {% set name = 'products[0][product_id]' %}
+                                    {% set options = products|map(attribute='name')|list %}
+                                    {% set selected_text = 'Chọn sản phẩm' %}
+                                    {% include 'components/dropdown_select.html' %}
+                                </div>
+                                <div>
+                                    <div style="margin-bottom: 10px;">Số lượng</div>
+                                    {% set type = 'number' %}
+                                    {% set name = 'products[0][quantity]' %}
+                                    {% set required = True %}
+                                    {% set readonly = False %}
+                                    {% set placeholder = 'Số lượng' %}
+                                    {% set min = '1' %}
+                                    {% include 'components/input.html' %}
+                                </div>
+                                <div>
+                                    <div style="margin-bottom: 10px;">Giá bán (VND)</div>
+                                    {% set type = 'number' %}
+                                    {% set name = 'products[0][unit_price]' %}
+                                    {% set required = True %}
+                                    {% set placeholder = 'Giá bán' %}
+                                    {% set step = '0.01' %}
+                                    {% include 'components/input.html' %}
+                                </div>
+                                <div>
+                                    <div style="margin-bottom: 10px;">Tổng tiền</div>
+                                    {% set type = 'text' %}
+                                    {% set name = 'products[0][total]' %}
+                                    {% set readonly = True %}
+                                    {% set value = '0 đ' %}
+                                    {% include 'components/input.html' %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="add-container">
+                            <button type="button" onclick="addProductRow()" class="btn-add-product">Thêm sản phẩm</button>
+                        </div>
+                    </div>
+
+                    <div class="outboundadd-btns">
+                        <a style="text-decoration: none" href="/employee/outbound/list">
+                            {% include 'components/exit_button.html' %}
+                        </a>
+                        {% include 'components/save_button.html' %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('add-outbound-form');
+            const messageDiv = document.getElementById('message');
+            let rowIndex = 0;
+
+            // Danh sách sản phẩm gốc
+            const originalProducts = {{ products|tojson|safe }};
+            let currentProducts = originalProducts;
+
+            // Hàm xử lý dropdown
+            function initializeDropdown(container) {
+                if (container) {
+                    const dropdownId = container.getAttribute('data-dropdown-id');
+                    const dropdownToggle = document.getElementById(`${dropdownId}-toggle`);
+                    const dropdownMenu = document.getElementById(`${dropdownId}-menu`);
+                    const hiddenInput = container.querySelector('input[type="hidden"]');
+                    const selectedText = dropdownToggle.querySelector('.selected-text');
+
+                    if (dropdownToggle && dropdownMenu) {
+                        dropdownToggle.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            dropdownMenu.classList.toggle('show');
+                        });
+
+                        dropdownMenu.querySelectorAll('.dropdown-item').forEach(option => {
+                            option.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                const value = option.getAttribute('data-value');
+                                const id = option.getAttribute('data-id') || '';
+
+                                // Nếu là dropdown "Loại xuất", gán data-value vào input ẩn
+                                if (dropdownId === 'outbound-type-dropdown') {
+                                    hiddenInput.value = value || '';
+                                } else {
+                                    // Đối với các dropdown khác (như sản phẩm), gán data-id
+                                    hiddenInput.value = id || '';
+                                }
+
+                                selectedText.textContent = value || selectedText.textContent;
+
+                                dropdownMenu.querySelectorAll('.dropdown-item').forEach(item => item.classList.remove('bg-blue-100', 'text-blue-700'));
+                                option.classList.add('bg-blue-100', 'text-blue-700');
+                                dropdownMenu.classList.remove('show');
+
+                                // Reset giá bán và số lượng khi thay đổi sản phẩm
+                                const row = container.closest('.product-row');
+                                if (row) {
+                                    const unitPriceInput = row.querySelector('input[name$="[unit_price]"]');
+                                    const quantityInput = row.querySelector('input[name$="[quantity]"]');
+                                    const product = currentProducts.find(p => p.id == id);
+                                    if (product) {
+                                        unitPriceInput.value = product.market_price || 0;
+                                    }
+                                    quantityInput.value = '';
+                                    calculateTotals();
+                                }
+                            });
+                        });
+
+                        document.addEventListener('click', (e) => {
+                            if (!container.contains(e.target)) {
+                                dropdownMenu.classList.remove('show');
+                            }
+                        });
+                    }
+                }
+            }
+
+            // Tính tổng tiền cho mỗi dòng
+            function calculateTotals() {
+                const rows = document.querySelectorAll('.product-row');
+                let grandTotal = 0;
+
+                rows.forEach(row => {
+                    const unitPriceInput = row.querySelector('input[name$="[unit_price]"]');
+                    const quantityInput = row.querySelector('input[name$="[quantity]"]');
+                    const totalInput = row.querySelector('input[name$="[total]"]');
+
+                    const unitPrice = parseFloat(unitPriceInput.value) || 0;
+                    const quantity = parseFloat(quantityInput.value) || 0;
+                    const total = unitPrice * quantity;
+                    totalInput.value = isNaN(total) ? '0 đ' : total.toLocaleString('vi-VN') + ' đ';
+                    grandTotal += total;
+                });
+
+                const totalAmountInput = document.getElementById('totalAmount');
+                totalAmountInput.value = grandTotal.toLocaleString('vi-VN') + ' đ';
+            }
+
+            // Thêm dòng sản phẩm mới bằng AJAX
+            window.addProductRow = async function(e) {
+                if (e) e.preventDefault();
+                const container = document.getElementById('productContainer');
+                rowIndex++;
+
+                try {
+                    const response = await fetch(`/employee/outbound/add-product-row?index=${rowIndex}`, {
+                        credentials: 'include',
+                        headers: { 'Accept': 'text/html' }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch new product row');
+                    }
+
+                    const html = await response.text();
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    const newRow = tempDiv.firstElementChild;
+                    container.appendChild(newRow);
+
+                    // Thêm sự kiện tính tổng khi thay đổi giá hoặc số lượng
+                    newRow.querySelectorAll('input[type="number"]').forEach(input => {
+                        input.addEventListener('input', calculateTotals);
+                    });
+
+                    // Gắn sự kiện cho dropdown mới
+                    const dropdown = newRow.querySelector('.dropdown-select-container');
+                    if (dropdown) {
+                        initializeDropdown(dropdown);
+                    }
+
+                    calculateTotals();
+                } catch (error) {
+                    console.error('Error adding product row:', error);
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: Không thể thêm dòng sản phẩm mới.';
+                }
+            };
+
+            // Gắn sự kiện tính tổng cho các ô hiện tại
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('input', calculateTotals);
+            });
+
+            // Gắn sự kiện cho các dropdown hiện tại
+            document.querySelectorAll('.dropdown-select-container').forEach(container => {
+                initializeDropdown(container);
+            });
+
+            // Tính tổng ban đầu
+            calculateTotals();
+
+            // Xử lý submit form
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+
+                const products = [];
+                let index = 0;
+                while (true) {
+                    const productIdKey = `products[${index}][product_id]`;
+                    if (!formData.has(productIdKey)) break;
+
+                    const productId = formData.get(productIdKey);
+                    // Kiểm tra xem productId có phải là số hợp lệ không
+                    if (!productId || !/^\d+$/.test(productId)) {
+                        messageDiv.style.display = 'block';
+                        messageDiv.className = 'error';
+                        messageDiv.textContent = `Lỗi: ID sản phẩm không hợp lệ ở dòng ${index + 1}.`;
+                        return;
+                    }
+
+                    const product = {
+                        product_id: parseInt(productId),
+                        quantity: formData.get(`products[${index}][quantity]`),
+                        unit_price: formData.get(`products[${index}][unit_price]`),
+                    };
+                    products.push(product);
+                    index++;
+                }
+
+                if (products.length === 0) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: Vui lòng thêm ít nhất một sản phẩm.';
+                    return;
+                }
+
+                // Kiểm tra outbound_type
+                const outboundType = formData.get('outbound_type');
+                if (!outboundType) {
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: Vui lòng chọn loại xuất.';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/employee/outbound/add', {
+                        method: 'POST',
+                        credentials: 'include',
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                        }
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Failed to add outbound');
+                    }
+
+                    const result = await response.json();
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'success';
+                    messageDiv.textContent = 'Thêm phiếu xuất thành công';
+                    setTimeout(() => {
+                        window.location.href = `/employee/outbound/list`;
+                    }, 1000);
+                } catch (error) {
+                    console.error('Error submitting form:', error);
+                    messageDiv.style.display = 'block';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = 'Lỗi: ' + error.message;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

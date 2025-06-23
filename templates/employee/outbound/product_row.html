@@ -1,0 +1,32 @@
+<div class="product-row" data-index="{{ index }}">
+    <div>
+        {% set dropdown_id = 'product-dropdown-' ~ index %}
+        {% set name = 'products[' ~ index ~ '][product_id]' %}
+        {% set options = products|map(attribute='name')|list %}
+        {% set selected_text = 'Chọn sản phẩm' %}
+        {% include 'components/dropdown_select.html' %}
+    </div>
+    <div>
+        {% set type = 'number' %}
+        {% set name = 'products[' ~ index ~ '][quantity]' %}
+        {% set required = True %}
+        {% set placeholder = 'Số lượng' %}
+        {% set min = '1' %}
+        {% include 'components/input.html' %}
+    </div>
+    <div>
+        {% set type = 'number' %}
+        {% set name = 'products[' ~ index ~ '][unit_price]' %}
+        {% set required = True %}
+        {% set placeholder = 'Giá bán' %}
+        {% set step = '0.01' %}
+        {% include 'components/input.html' %}
+    </div>
+    <div>
+        {% set type = 'text' %}
+        {% set name = 'products[' ~ index ~ '][total]' %}
+        {% set readonly = True %}
+        {% set value = '0 đ' %}
+        {% include 'components/input.html' %}
+    </div>
+</div>

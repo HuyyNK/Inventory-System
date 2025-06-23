@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết phiếu xuất hàng</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        @import url('https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css');
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .body { display: flex; flex: 1 0 0; overflow: hidden; }
+        .body-left { height: 100%; overflow-y: auto; }
+        .body-right { display: flex; padding: 20px; flex-direction: column; align-items: flex-start; gap: 20px; flex: 1 0 0; align-self: stretch; overflow-y: auto; color: #000; font-family: Inter, sans-serif; font-size: 16px; font-style: normal; font-weight: 400; line-height: normal; }
+        .body-right h1 { color: #000; font-family: Inter, sans-serif; font-size: 16px; font-style: normal; font-weight: 700; line-height: normal; }
+        .body-right h2 { color: #01B3EF; font-family: Inter, sans-serif; font-size: 16px; font-style: normal; font-weight: 700; line-height: normal; }
+        .outboundadd-fields { display: flex; width: 100%; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+        .outboundadd-field { display: flex; width: 48%; flex-direction: column; align-items: flex-start; gap: 10px; flex-shrink: 0; color: #000; font-family: Inter, sans-serif; font-size: 16px; font-style: normal; font-weight: 400; line-height: normal; }
+        .outboundadd-btns { display: flex; width: 100%; justify-content: flex-end; align-items: center; gap: 20px; }
+        #message { width: 100%; padding: 10px; margin: 10px 0; border-radius: 4px; display: none; }
+        #message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        #message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .product-details { width: 100%; }
+        .detail-table-container { width: 100%; max-width: 100%; overflow-x: auto; margin: 0 auto; }
+        #detail-table { width: 100%; table-layout: auto; font-family: Inter, sans-serif; border-collapse: collapse; color: #000; }
+        #detail-table th { padding: 10px; text-align: left; background-color: rgba(185, 185, 185, 0.5); color: #000; white-space: nowrap; font-weight: 600; }
+        #detail-table td { padding: 8px; text-align: left; color: #000; background-color: #fff; border-top: 1px solid rgba(0, 60, 60, 0.5); white-space: nowrap; line-height: 2; }
+        #detail-table tbody tr:hover { background-color: #f3f4f6; }
+    </style>
+</head>
+<body>
+    <div class="outboundadd">
+        <div class="outboundadd-heading">
+            {% include 'components/heading.html' %}
+        </div>
+        <div class="body">
+            <div class="body-left">
+                {% include 'components/sidebar_employee.html' %}
+            </div>
+            <div class="body-right">
+                Nhân viên / Xuất hàng / Chi tiết phiếu xuất
+                <h2>Chi tiết phiếu xuất hàng:</h2>
+                <div id="message" style="display: none;"></div>
+                <div class="outboundadd-fields">
+                    <div class="outboundadd-field">
+                        Tên khách hàng
+                        {% set type = 'text' %}
+                        {% set name = 'customer_name' %}
+                        {% set value = outbound.customer_name or 'Không xác định' %}
+                        {% set readonly = True %}
+                        {% include 'components/input.html' %}
+                    </div>
+                    <div class="outboundadd-field">
+                        Ngày xuất hàng
+                        {% set type = 'text' %}
+                        {% set name = 'date' %}
+                        {% set value = outbound.date|datetimeformat %}
+                        {% set readonly = True %}
+                        {% include 'components/input.html' %}
+                    </div>
+                </div>
+                <div class="outboundadd-fields">
+                    <div class="outboundadd-field">
+                        Người xuất hàng
+                        {% set type = 'text' %}
+                        {% set name = 'created_by_name' %}
+                        {% set value = outbound.created_by_name or 'Không xác định' %}
+                        {% set readonly = True %}
+                        {% include 'components/input.html' %}
+                    </div>
+                    <div class="outboundadd-field">
+                        Loại xuất
+                        {% set type = 'text' %}
+                        {% set name = 'outbound_type' %}
+                        {% set value = outbound.outbound_type or 'Không xác định' %}
+                        {% set readonly = True %}
+                        {% include 'components/input.html' %}
+                    </div>
+                </div>
+                <div class="outboundadd-fields">
+                    <div class="outboundadd-field">
+                        Ghi chú
+                        {% set type = 'text' %}
+                        {% set name = 'notes' %}
+                        {% set value = outbound.notes or 'Không có ghi chú' %}
+                        {% set readonly = True %}
+                        {% include 'components/input.html' %}
+                    </div>
+                    <div class="outboundadd-field">
+                        Tổng tiền
+                        {% set type = 'text' %}
+                        {% set name = 'total_amount' %}
+                        {% set value = outbound.total_amount|currencyformat %}
+                        {% set readonly = True %}
+                        {% include 'components/input.html' %}
+                    </div>
+                </div>
+
+                <h2>Chi tiết xuất hàng:</h2>
+                <div class="product-details">
+                    <div class="detail-table-container">
+                        <table id="detail-table">
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Tên sản phẩm</th>
+                                    <th>Lô hàng</th>
+                                    <th>Hạn sử dụng</th>
+                                    <th>Số lượng</th>
+                                    <th>Giá bán</th>
+                                    <th>Tổng tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set stt = namespace(value=0) %}
+                                {% for detail in outbound_details %}
+                                    {% if loop.first or (loop.previtem and loop.previtem.product_id != detail.product_id) %}
+                                        {% set stt.value = stt.value + 1 %}
+                                        <tr>
+                                            <td>{{ stt.value }}</td>
+                                            <td>{{ detail.product_name }}</td>
+                                            <td>{{ detail.batch_number or 'Không có lô' }}</td>
+                                            <td>{{ detail.expiry_date|datetimeformat }}</td>
+                                            <td>{{ detail.quantity }} {{ detail.unit or 'đơn vị' }}</td>
+                                            <td>{{ detail.unit_price|currencyformat }}</td>
+                                            <td>{{ (detail.unit_price * detail.quantity)|currencyformat }}</td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td></td>
+                                            <td></td>
+                                            <td>{{ detail.batch_number or 'Không có lô' }}</td>
+                                            <td>{{ detail.expiry_date|datetimeformat }}</td>
+                                            <td>{{ detail.quantity }} {{ detail.unit or 'đơn vị' }}</td>
+                                            <td>{{ detail.unit_price|currencyformat }}</td>
+                                            <td>{{ (detail.unit_price * detail.quantity)|currencyformat }}</td>
+                                        </tr>
+                                    {% endif %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center">Không có chi tiết sản phẩm.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="outboundadd-btns">
+                    <a style="text-decoration: none" href="/employee/outbound/list">
+                        {% include 'components/exit_button.html' %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

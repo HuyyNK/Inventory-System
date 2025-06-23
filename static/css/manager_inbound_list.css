@@ -90,13 +90,12 @@
 }
 
 #inbound-table td {
-  padding: 5px;
+  padding: 15px;
   text-align: left;
   color: black;
   background-color: white;
   border-top: 1px solid rgba(0, 60, 60, 0.5);
   white-space: nowrap;
-  line-height: 3; /* Tăng khoảng cách dòng */
 }
 
 #inbound-table a,

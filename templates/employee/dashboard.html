@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .lists-heading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #FFF;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            min-height: calc(100vh - 64px);
+            margin-top: 64px;
+            background-color: #FFF;
+        }
+
+        .body-left {
+            height: 100%;
+            overflow-y: auto;
+            width: 250px;
+            position: fixed;
+            top: 64px;
+            bottom: 0;
+            background-color: #FFF;
+        }
+
+        .body-right {
+            display: flex;
+            padding: 20px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            flex: 1 0 0;
+            align-self: stretch;
+            color: #000;
+            font-family: Inter, sans-serif;
+            font-size: 16px;
+            font-style: normal;
+            font-weight: 400;
+            line-height: normal;
+            overflow-y: auto;
+            margin-left: 250px;
+            background-color: #FFF;
+        }
+
+        .body-right h1 {
+            color: #000;
+            font-family: Inter, sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            line-height: normal;
+        }
+
+        .overview-cards {
+            display: flex;
+            width: 100%;
+            flex-wrap: wrap;
+            gap: 20px;
+            background-color: #FFF;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            flex: 1 0 18%;
+            padding: 16px;
+            border-radius: 8px;
+            background: #FFF;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: scale(1.02);
+        }
+
+        .card h3 {
+            color: #000;
+            font-family: Inter, sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .card p {
+            color: #01427a;
+            font-family: Inter, sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            width: 100%;
+            background-color: #FFF;
+        }
+
+        .chart-container {
+            background: #FFF;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-container h2 {
+            color: #01B3EF;
+            font-family: Inter, sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .chart-container canvas {
+            max-height: 300px;
+            width: 100%;
+        }
+
+        .table-container {
+            width: 100%;
+            max-height: 400px;
+            overflow-x: auto;
+            overflow-y: auto;
+            background-color: #FFF;
+        }
+
+        table {
+            width: 100%;
+            min-width: 100%;
+            font-family: Inter, sans-serif;
+            border-collapse: collapse;
+            color: black;
+            table-layout: auto;
+            background-color: #FFF;
+        }
+
+        table th {
+            padding: 10px;
+            text-align: left;
+            background-color: #B9B9B9;
+            color: black;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        table td {
+            padding: 5px;
+            text-align: left;
+            color: black;
+            background-color: #FFF;
+            border-top: 1px solid rgba(0, 60, 60, 0.5);
+            white-space: nowrap;
+            line-height: 3;
+        }
+
+        table a {
+            text-decoration: none;
+            color: #01B3EF;
+        }
+
+        table a:hover {
+            text-decoration: underline;
+        }
+
+        #message {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+            font-family: Inter, sans-serif;
+            background-color: #FFF;
+        }
+
+        #message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        #message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="lists-heading">
+            {% include 'components/heading.html' %}
+        </div>
+        <div class="body">
+            <div class="body-left">
+                {% include 'components/sidebar_employee.html' %}
+            </div>
+            <div class="body-right">
+                Nhân viên / Dashboard
+                <div id="message"></div>
+
+                <!-- KPI Cards -->
+                <div class="overview-cards">
+                    <div class="card">
+                        <h3>Tổng tồn kho</h3>
+                        <p id="total-quantity">0 đơn vị</p>
+                    </div>
+                    <div class="card">
+                        <h3>Giá trị tồn kho</h3>
+                        <p id="total-value">0 VND</p>
+                    </div>
+                    <div class="card">
+                        <h3>Sản phẩm sắp hết hàng</h3>
+                        <p id="low-stock">0 lô</p>
+                    </div>
+                    <div class="card">
+                        <h3>Sản phẩm sắp hết hạn</h3>
+                        <p id="expiring">0 lô</p>
+                    </div>
+                    <div class="card">
+                        <h3>Tỷ lệ hao hụt</h3>
+                        <p id="loss-percentage">0%</p>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts">
+                    <div class="chart-container">
+                        <h2>Tồn kho theo danh mục</h2>
+                        <canvas id="pie-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h2>Xu hướng nhập/xuất kho</h2>
+                        <canvas id="line-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h2>Top 5 sản phẩm bán chạy</h2>
+                        <canvas id="bar-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h2>Tình trạng kho lưu trữ</h2>
+                        <canvas id="storage-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Warnings Table -->
+                <div class="warnings w-full max-w-none">
+                    <h2 class="text-xl font-bold mb-4">Cảnh báo</h2>
+                    <div class="table-container w-full max-w-none">
+                        <table id="warning-table" class="w-full">
+                            <thead>
+                                <tr>
+                                    <th>Sản phẩm</th>
+                                    <th>Lô</th>
+                                    <th>Số lượng</th>
+                                    <th>Hết hạn</th>
+                                    <th>Trạng thái</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="warning-items"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Recent Activities Table -->
+                <div class="recent-activities w-full max-w-none">
+                    <h2 class="text-xl font-bold mb-4">Hoạt động gần đây</h2>
+                    <div class="table-container w-full max-w-none">
+                        <table id="activity-table" class="w-full">
+                            <thead>
+                                <tr>
+                                    <th>Ngày</th>
+                                    <th>Loại</th>
+                                    <th>Mã phiếu</th>
+                                    <th>Người thực hiện</th>
+                                    <th>Mô tả</th>
+                                </tr>
+                            </thead>
+                            <tbody id="activity-items"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const messageDiv = document.getElementById('message');
+
+            const charts = {
+                pie: new Chart(document.getElementById('pie-chart').getContext('2d'), {
+                    type: 'pie',
+                    data: { labels: [], datasets: [{ data: [], backgroundColor: ['#01b3ef', '#01427a', '#e14177', '#28a745', '#ffc107'] }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                }),
+                line: new Chart(document.getElementById('line-chart').getContext('2d'), {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ label: 'Nhập', data: [], borderColor: '#01427a', fill: false }, { label: 'Xuất', data: [], borderColor: '#e14177', fill: false }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                }),
+                bar: new Chart(document.getElementById('bar-chart').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: [], datasets: [{ label: 'Số lượng', data: [], backgroundColor: '#01427a' }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                }),
+                storage: new Chart(document.getElementById('storage-chart').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: [], datasets: [{ label: 'Số lượng', data: [], backgroundColor: '#e14177' }] },
+                    options: { scales: { x: { stacked: true }, y: { stacked: true } }, responsive: true, maintainAspectRatio: false }
+                })
+            };
+
+            const showMessage = (type, text) => {
+                messageDiv.style.display = 'block';
+                messageDiv.className = type;
+                messageDiv.textContent = text;
+                setTimeout(() => { messageDiv.style.display = 'none'; messageDiv.className = ''; messageDiv.textContent = ''; }, 5000);
+            };
+
+            async function fetchCurrentUser() {
+                try {
+                    const response = await fetch('/auth/me', { credentials: 'include', headers: { 'Accept': 'application/json' } });
+                    if (!response.ok) throw new Error(response.status === 401 ? 'Chưa đăng nhập' : `Lỗi HTTP ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    showMessage('error', `Lỗi: ${error.message}. Chuyển hướng đến trang đăng nhập...`);
+                    setTimeout(() => window.location.href = '/login', 2000);
+                    return null;
+                }
+            }
+
+            async function updateKPI() {
+                try {
+                    const response = await fetch('/employee/dashboard/kpi', { credentials: 'include', headers: { 'Accept': 'application/json' } });
+                    if (!response.ok) throw new Error(response.status === 401 ? 'Chưa đăng nhập' : `Lỗi HTTP ${response.status}`);
+                    const data = await response.json();
+                    document.getElementById('total-quantity').textContent = `${(data.total_quantity || 0).toLocaleString('vi-VN')} đơn vị`;
+                    document.getElementById('total-value').textContent = `${(data.total_value || 0).toLocaleString('vi-VN')} VND`;
+                    document.getElementById('low-stock').textContent = `${(data.low_stock || 0).toLocaleString('vi-VN')} lô`;
+                    document.getElementById('expiring').textContent = `${(data.expiring || 0).toLocaleString('vi-VN')} lô`;
+                    document.getElementById('loss-percentage').textContent = `${(data.loss_percentage || 0).toFixed(1)}%`;
+                } catch (error) {
+                    showMessage('error', `Lỗi tải KPI: ${error.message}`);
+                }
+            }
+
+            async function updateCharts() {
+                try {
+                    const response = await fetch('/employee/dashboard/charts', { credentials: 'include', headers: { 'Accept': 'application/json' } });
+                    if (!response.ok) throw new Error(response.status === 401 ? 'Chưa đăng nhập' : `Lỗi HTTP ${response.status}`);
+                    const data = await response.json();
+                    charts.pie.data.labels = data.pie.labels || [];
+                    charts.pie.data.datasets[0].data = data.pie.data || [];
+                    charts.pie.update();
+                    charts.line.data.labels = data.line.labels || [];
+                    charts.line.data.datasets[0].data = data.line.inbound || [];
+                    charts.line.data.datasets[1].data = data.line.outbound || [];
+                    charts.line.update();
+                    charts.bar.data.labels = data.bar.labels || [];
+                    charts.bar.data.datasets[0].data = data.bar.data || [];
+                    charts.bar.update();
+                    charts.storage.data.labels = data.stacked.labels || [];
+                    charts.storage.data.datasets[0].data = data.stacked.data || [];
+                    charts.storage.update();
+                } catch (error) {
+                    showMessage('error', `Lỗi tải biểu đồ: ${error.message}`);
+                }
+            }
+
+            async function updateWarnings() {
+                try {
+                    const response = await fetch('/employee/dashboard/warnings', { credentials: 'include', headers: { 'Accept': 'application/json' } });
+                    if (!response.ok) throw new Error(response.status === 401 ? 'Chưa đăng nhập' : `Lỗi HTTP ${response.status}`);
+                    const data = await response.json();
+                    const tbody = document.getElementById('warning-items');
+                    tbody.innerHTML = data.length ? '' : '<tr><td colspan="6">Không có cảnh báo.</td></tr>';
+                    data.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const actionLink = item.action === 'Xem chi tiết' ? 
+                            `/employee/inventory/view/${item.inventory_id || ''}` : 
+                            item.action === 'Tạo phiếu nhập' ? '/employee/inbound/add' : '/employee/outbound/add';
+                        tr.innerHTML = `
+                            <td>${item.name || '-'}</td>
+                            <td>${item.batch_number || '-'}</td>
+                            <td>${(item.current_quantity || 0).toLocaleString('vi-VN')}</td>
+                            <td>${item.expiry_date ? new Date(item.expiry_date).toLocaleDateString('vi-VN') : '-'}</td>
+                            <td>${item.status || '-'}</td>
+                            <td><a href="${actionLink}" class="text-blue-500 hover:underline">${item.action || '-'}</a></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } catch (error) {
+                    showMessage('error', `Lỗi tải cảnh báo: ${error.message}`);
+                }
+            }
+
+            async function updateActivities() {
+                try {
+                    const response = await fetch('/employee/dashboard/activities', { credentials: 'include', headers: { 'Accept': 'application/json' } });
+                    if (!response.ok) throw new Error(response.status === 401 ? 'Chưa đăng nhập' : `Lỗi HTTP ${response.status}`);
+                    const data = await response.json();
+                    const tbody = document.getElementById('activity-items');
+                    tbody.innerHTML = data.length ? '' : '<tr><td colspan="5">Không có hoạt động gần đây.</td></tr>';
+                    data.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const actionLink = item.activity_type === 'Kiểm kê' ? 
+                            `/employee/stocktake/view/${item.stocktake_id || ''}` : 
+                            item.activity_type === 'Nhập kho' ? `/employee/inbound/detail/${item.code.replace('INB-', '')}` : 
+                            `/employee/outbound/detail/${item.code.replace('OUT-', '')}`;
+                        tr.innerHTML = `
+                            <td>${item.date ? new Date(item.date).toLocaleDateString('vi-VN') : '-'}</td>
+                            <td>${item.activity_type || '-'}</td>
+                            <td><a href="${actionLink}" class="text-blue-500 hover:underline">${item.code || '-'}</a></td>
+                            <td>${item.full_name || '-'}</td>
+                            <td>${item.description || '-'}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } catch (error) {
+                    showMessage('error', `Lỗi tải hoạt động: ${error.message}`);
+                }
+            }
+
+            async function loadDashboard() {
+                const user = await fetchCurrentUser();
+                if (!user || user.role_id !== 2) return;
+                await Promise.all([updateKPI(), updateCharts(), updateWarnings(), updateActivities()]);
+            }
+
+            loadDashboard();
+            setInterval(updateKPI, 300000);
+            setInterval(updateCharts, 600000);
+        });
+    </script>
+</body>
+</html>
